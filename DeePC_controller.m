@@ -33,11 +33,11 @@ function DeePC_controller()
     T_ini = 5;          % Past horizon (reduced for better conditioning)
     N = 15;             % Future horizon (reduced for stability)
     
-    % Regularization (adjusted for better conditioning)
-    lambda_y = 100;     % Output regularization (reduced)
-    lambda_g = 10;      % Sigma (slack variable) regularization (reduced)
-    lambda_u = 1;       % Input regularization
-    
+    % Increase slack variable penalties
+    lambda_y = 1000;     % Increased from 100
+    lambda_g = 1000;     % Increased from 10  
+    lambda_u = 10;       % Increased from 1
+
     % Constraints
     u_min = 0 - u_mean;     % Min heater power (deviation)
     u_max = 100 - u_mean;   % Max heater power (deviation)
@@ -270,8 +270,8 @@ function [u_opt, status] = solve_deepc_qp(U_p, Y_p, U_f, Y_f, u_ini, y_ini, r, .
     H(idx_u, idx_u) = 2 * lambda_u * eye(n_u);
     
     % Slack variable penalties
-    H(idx_sigma_y, idx_sigma_y) = 2 * lambda_g * eye(n_sigma_y);
-    H(idx_sigma_u, idx_sigma_u) = 2 * lambda_y * eye(n_sigma_u);
+    H(idx_sigma_y, idx_sigma_y) = 2 * lambda_y * eye(n_sigma_y);  % lambda_y for output slack
+    H(idx_sigma_u, idx_sigma_u) = 2 * lambda_g * eye(n_sigma_u);  % lambda_g for input slack
     
     % Ensure H is positive definite
     H = H + 1e-6 * eye(n_vars);
@@ -306,7 +306,7 @@ function [u_opt, status] = solve_deepc_qp(U_p, Y_p, U_f, Y_f, u_ini, y_ini, r, .
     A_ineq = [A_ineq; A_u];
     b_ineq = [b_ineq; b_u];
     
-    % Rate constraint on first move
+    % Rate constraint on first moves
     A_rate = [zeros(2, n_g), [1, zeros(1, N-1); -1, zeros(1, N-1)], zeros(2, n_sigma_y + n_sigma_u)];
     b_rate = [u_prev + du_max; -u_prev + du_max];
     
@@ -316,8 +316,8 @@ function [u_opt, status] = solve_deepc_qp(U_p, Y_p, U_f, Y_f, u_ini, y_ini, r, .
     % Solve QP with better options
     options = optimoptions('quadprog', 'Display', 'off', ...
                            'MaxIterations', 200, ...
-                           'ConstraintTolerance', 1e-6, ...
-                           'OptimalityTolerance', 1e-6);
+                           'ConstraintTolerance', 1e-5, ...
+                           'OptimalityTolerance', 1e-5);
     
     try
         [x_opt, ~, exitflag] = quadprog(H, f, A_ineq, b_ineq, A_eq, b_eq, [], [], [], options);
