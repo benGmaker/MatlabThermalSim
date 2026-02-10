@@ -1,0 +1,70 @@
+# MATLAB autosave and temporary files
+*.asv
+*.m~
+
+# MATLAB compilation files
+*.mex
+*.mexa64
+*.mexw32
+*.mexw64
+*.mexmaci64
+*.mexmaca64
+
+# MATLAB code generation
+codegen/
+*.prj
+
+# Simulink autosave
+*.autosave
+*.slxc
+slprj/
+
+# MATLAB App Designer
+*.mlapp~
+
+# MATLAB packaged apps and toolboxes
+*.mlappinstall
+*.mltbx
+
+# MATLAB project files (optional - uncomment if you don't want to track projects)
+# *.prj
+# resources/project/
+
+# MATLAB data files (optional - uncomment if large or generated)
+# *.mat
+
+# Figures (optional - uncomment if generated/temporary)
+# *.fig
+
+# MATLAB Reports
+*.pdf
+*.html
+
+# Cache and settings
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# OS-specific files
+*~
+.directory
+
+# Build and binary folders
+bin/
+build/
+dist/
+
+# Documentation build
+html/
+latex/
+
+# Coverage reports
+coverage/
+htmlcov/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
