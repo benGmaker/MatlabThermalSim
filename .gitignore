@@ -31,10 +31,11 @@ slprj/
 # resources/project/
 
 # MATLAB data files (optional - uncomment if large or generated)
-# *.mat
+*.mat
 
 # Figures (optional - uncomment if generated/temporary)
-# *.fig
+*.fig
+*.png
 
 # MATLAB Reports
 *.pdf
