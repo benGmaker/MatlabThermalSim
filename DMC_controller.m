@@ -1,12 +1,14 @@
 function DMC_controller()
 % DMC_CONTROLLER Implements Dynamic Matrix Control for thermal system
 % Uses step response model for prediction and optimization
-
     clc; close all;
-    
+    % Create results directory if it doesn't exist
+    if ~exist('results', 'dir')
+        mkdir('results');
+    end
     %% ========== LOAD IDENTIFIED MODEL ==========
     fprintf('Loading identified model...\n');
-    load('identified_models.mat', 'identified_models');
+    load('results/identified_models.mat', 'identified_models');
     
     sys = identified_models.sys_tf;
     dt = identified_models.dt;
@@ -180,8 +182,8 @@ function DMC_controller()
     DMC_results.control_effort = control_effort;
     DMC_results.params = struct('P', P, 'M', M, 'N', N, 'Q', Q_weight, 'R', R_weight);
     
-    save('DMC_results.mat', 'DMC_results');
-    fprintf('\nSaved: DMC_results.mat\n');
+    save('results/DMC_results.mat', 'DMC_results');
+    fprintf('\nSaved: results/DMC_results.mat\n');
     
     %% ========== PLOTTING ==========
     fprintf('Generating plots...\n');
@@ -213,8 +215,8 @@ function DMC_controller()
     grid on;
     
     sgtitle(sprintf('DMC Controller Results (MAE: %.3f°C, RMSE: %.3f°C)', MAE, RMSE));
-    saveas(gcf, 'DMC_controller_plots.png');
-    fprintf('  Saved: DMC_controller_plots.png\n');
+    saveas(gcf, 'results/DMC_controller_plots.png');
+    fprintf('  Saved: results/DMC_controller_plots.png\n');
     
     fprintf('\nDMC controller simulation complete!\n');
 end

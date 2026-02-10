@@ -4,6 +4,11 @@ function experiment_data_collection()
 
     clc; close all;
     
+    % Create results directory if it doesn't exist
+    if ~exist('results', 'dir')
+        mkdir('results');
+    end
+    
     %% ========== EXPERIMENTAL PARAMETERS ==========
     params = struct();
     params.dt = 1;              % Sampling time [s]
@@ -32,8 +37,8 @@ function experiment_data_collection()
     
     % Save data
     step_data = struct('t', t_step, 'T', T_step, 'Q', Q_step_data, 'params', params);
-    save('step_response_data.mat', 'step_data');
-    fprintf('  Saved: step_response_data.mat\n');
+    save('results/step_response_data.mat', 'step_data');
+    fprintf('  Saved: results/step_response_data.mat\n');
     
     %% ========== EXPERIMENT 2: IMPULSE RESPONSE ==========
     fprintf('Running Impulse Response Experiment...\n');
@@ -43,8 +48,8 @@ function experiment_data_collection()
     
     % Save data
     impulse_data = struct('t', t_impulse, 'T', T_impulse, 'Q', Q_impulse_data, 'params', params);
-    save('impulse_response_data.mat', 'impulse_data');
-    fprintf('  Saved: impulse_response_data.mat\n');
+    save('results/impulse_response_data.mat', 'impulse_data');
+    fprintf('  Saved: results/impulse_response_data.mat\n');
     
     %% ========== EXPERIMENT 3: MULTISINE RESPONSE ==========
     fprintf('Running Multisine Response Experiment...\n');
@@ -64,8 +69,8 @@ function experiment_data_collection()
     % Save data
     multisine_data = struct('t', t_multisine, 'T', T_multisine, 'Q', Q_multisine_data, ...
                             'params', params, 'freqs', freqs, 'phases', phases);
-    save('multisine_response_data.mat', 'multisine_data');
-    fprintf('  Saved: multisine_response_data.mat\n');
+    save('results/multisine_response_data.mat', 'multisine_data');
+    fprintf('  Saved: results/multisine_response_data.mat\n');
     
     %% ========== PLOTTING ==========
     fprintf('Generating plots...\n');
@@ -112,8 +117,8 @@ function experiment_data_collection()
     grid on;
     
     sgtitle('Data Collection Experiments');
-    saveas(gcf, 'data_collection_plots.png');
-    fprintf('  Saved: data_collection_plots.png\n');
+    saveas(gcf, 'results/data_collection_plots.png');
+    fprintf('  Saved: results/data_collection_plots.png\n');
     
     fprintf('\nData collection complete!\n');
 end

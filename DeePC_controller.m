@@ -3,12 +3,15 @@ function DeePC_controller()
 % Uses collected data directly without explicit model identification
 
     clc; close all;
-    
+    % Create results directory if it doesn't exist
+    if ~exist('results', 'dir')
+        mkdir('results');
+    end
     %% ========== LOAD DATA FOR DeePC ==========
     fprintf('Loading data for DeePC...\n');
     
     % Use multisine data for DeePC (best excitation)
-    load('multisine_response_data.mat', 'multisine_data');
+    load('results/multisine_response_data.mat', 'multisine_data');
     
     u_data = multisine_data.Q;
     y_data = multisine_data.T;
@@ -200,8 +203,8 @@ function DeePC_controller()
     DeePC_results.params = struct('T_ini', T_ini, 'N', N, ...
                                    'lambda_y', lambda_y, 'lambda_g', lambda_g);
     
-    save('DeePC_results.mat', 'DeePC_results');
-    fprintf('\nSaved: DeePC_results.mat\n');
+    save('results/DeePC_results.mat', 'DeePC_results');
+    fprintf('\nSaved: results/DeePC_results.mat\n');
     
     %% ========== PLOTTING ==========
     fprintf('Generating plots...\n');
@@ -229,8 +232,8 @@ function DeePC_controller()
     grid on;
     
     sgtitle(sprintf('DeePC Controller Results (MAE: %.3f°C, RMSE: %.3f°C)', MAE, RMSE));
-    saveas(gcf, 'DeePC_controller_plots.png');
-    fprintf('  Saved: DeePC_controller_plots.png\n');
+    saveas(gcf, 'results/DeePC_controller_plots.png');
+    fprintf('  Saved: results/DeePC_controller_plots.png\n');
     
     fprintf('\nDeePC controller simulation complete!\n');
 end

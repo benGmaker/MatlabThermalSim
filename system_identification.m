@@ -4,6 +4,11 @@ function system_identification()
 
     clc; close all;
     
+    % Create results directory if it doesn't exist
+    if ~exist('results', 'dir')
+        mkdir('results');
+    end
+    
     %% ========== PARAMETERS ==========
     % Choose which dataset to use: 'step', 'impulse', or 'multisine'
     dataset_choice = 'multisine';  % Best for identification
@@ -20,13 +25,13 @@ function system_identification()
     
     switch dataset_choice
         case 'step'
-            data = load('step_response_data.mat');
+            data = load('results/step_response_data.mat');
             exp_data = data.step_data;
         case 'impulse'
-            data = load('impulse_response_data.mat');
+            data = load('results/impulse_response_data.mat');
             exp_data = data.impulse_data;
         case 'multisine'
-            data = load('multisine_response_data.mat');
+            data = load('results/multisine_response_data.mat');
             exp_data = data.multisine_data;
         otherwise
             error('Unknown dataset choice');
@@ -101,8 +106,8 @@ function system_identification()
     identified_models.fit_ss = fit_ss;
     identified_models.dataset_used = dataset_choice;
     
-    save('identified_models.mat', 'identified_models');
-    fprintf('\nSaved: identified_models.mat\n');
+    save('results/identified_models.mat', 'identified_models');
+    fprintf('\nSaved: results/identified_models.mat\n');
     
     %% ========== PLOTTING ==========
     fprintf('Generating plots...\n');
@@ -151,8 +156,8 @@ function system_identification()
     grid on;
     
     sgtitle('System Identification Results');
-    saveas(gcf, 'system_identification_plots.png');
-    fprintf('  Saved: system_identification_plots.png\n');
+    saveas(gcf, 'results/system_identification_plots.png');
+    fprintf('  Saved: results/system_identification_plots.png\n');
     
     fprintf('\nSystem identification complete!\n');
 end

@@ -3,10 +3,13 @@ function MPC_controller()
 % Uses identified transfer function model
 
     clc; close all;
-    
+    % Create results directory if it doesn't exist
+    if ~exist('results', 'dir')
+        mkdir('results');
+    end
     %% ========== LOAD IDENTIFIED MODEL ==========
     fprintf('Loading identified model...\n');
-    load('identified_models.mat', 'identified_models');
+    load('results/identified_models.mat', 'identified_models');
     
     sys = identified_models.sys_tf;
     dt = identified_models.dt;
@@ -160,8 +163,8 @@ function MPC_controller()
     MPC_results.params = struct('P', P, 'M', M, 'Q', Q_weight, 'R', R_weight);
     MPC_results.mpcobj = mpcobj;  % Save MPC object for reference
     
-    save('MPC_results.mat', 'MPC_results');
-    fprintf('\nSaved: MPC_results.mat\n');
+    save('results/MPC_results.mat', 'MPC_results');
+    fprintf('\nSaved: results/MPC_results.mat\n');
     
     %% ========== PLOTTING ==========
     fprintf('Generating plots...\n');
@@ -193,8 +196,8 @@ function MPC_controller()
     grid on;
     
     sgtitle(sprintf('MPC Controller Results (MAE: %.3f°C, RMSE: %.3f°C)', MAE, RMSE));
-    saveas(gcf, 'MPC_controller_plots.png');
-    fprintf('  Saved: MPC_controller_plots.png\n');
+    saveas(gcf, 'results/MPC_controller_plots.png');
+    fprintf('  Saved: results/MPC_controller_plots.png\n');
     
     fprintf('\nMPC controller simulation complete!\n');
 end

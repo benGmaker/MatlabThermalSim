@@ -3,6 +3,11 @@ function run_closed_loop_test()
 
     clc; close all;
     
+    % Create results directory if it doesn't exist
+    if ~exist('results', 'dir')
+        mkdir('results');
+    end
+    
     fprintf('========================================\n');
     fprintf('  Thermal Control System Simulation\n');
     fprintf('========================================\n\n');
@@ -46,9 +51,9 @@ function compare_controllers()
 % Compare DMC, MPC, and DeePC controller performance
     
     % Load results
-    load('DMC_results.mat', 'DMC_results');
-    load('MPC_results.mat', 'MPC_results');
-    load('DeePC_results.mat', 'DeePC_results');
+    load('results/DMC_results.mat', 'DMC_results');
+    load('results/MPC_results.mat', 'MPC_results');
+    load('results/DeePC_results.mat', 'DeePC_results');
     
     %% Print comparison table
     fprintf('\n========== Performance Comparison ==========\n');
@@ -182,8 +187,8 @@ function compare_controllers()
     grid on;
     
     sgtitle('Controller Performance Comparison: DMC vs MPC vs DeePC');
-    saveas(gcf, 'controller_comparison.png');
-    fprintf('  Saved: controller_comparison.png\n');
+    saveas(gcf, 'results/controller_comparison.png');
+    fprintf('  Saved: results/controller_comparison.png\n');
     
     %% Statistical analysis
     figure('Position', [100, 100, 1200, 400]);
@@ -227,8 +232,8 @@ function compare_controllers()
     grid on;
     
     sgtitle('Statistical Analysis of Controller Performance');
-    saveas(gcf, 'statistical_analysis.png');
-    fprintf('  Saved: statistical_analysis.png\n');
+    saveas(gcf, 'results/statistical_analysis.png');
+    fprintf('  Saved: results/statistical_analysis.png\n');
     
     %% Save comparison summary
     comparison_summary = struct();
@@ -239,8 +244,8 @@ function compare_controllers()
     comparison_summary.best_rmse = controllers{best_rmse};
     comparison_summary.best_ise = controllers{best_ise};
     
-    save('comparison_summary.mat', 'comparison_summary');
-    fprintf('  Saved: comparison_summary.mat\n');
+    save('results/comparison_summary.mat', 'comparison_summary');
+    fprintf('  Saved: results/comparison_summary.mat\n');
 end
 
 function metrics = compute_settling_metrics(t, error, threshold)
