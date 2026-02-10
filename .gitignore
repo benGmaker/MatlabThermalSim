@@ -14,6 +14,9 @@
 codegen/
 *.prj
 
+# Results folder
+/results
+
 # Simulink autosave
 *.autosave
 *.slxc
