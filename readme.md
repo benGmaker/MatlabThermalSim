@@ -8,6 +8,10 @@ This repository implements a modular thermal control simulation environment desi
 
 The simulation environment models a thermal system inspired by the Temperature Control Laboratory (TCLab), featuring nonlinear thermal dynamics including convection and radiation heat transfer mechanisms.
 
+###  Arduino Modeling Resources
+- [Arduino Modeling 2](https://apmonitor.com/pdc/index.php/Main/ArduinoModeling2)
+- [Arduino Modeling](https://apmonitor.com/pdc/index.php/Main/ArduinoModeling)
+
 ## Features
 
 ### Control Algorithms
