@@ -1,12 +1,22 @@
-function MPC_controller()
+function MPC_controller(config)
 % MPC_CONTROLLER Implements Model Predictive Control using MATLAB's MPC Toolbox
-% Uses identified transfer function model
+% IMPROVED: Uses centralized configuration
 
-    clc; close all;
-    % Create results directory if it doesn't exist
+    if nargin < 1
+        config = config_simulation();
+    end
+    
+    close all;
+    
+    % Create results directory
     if ~exist('results', 'dir')
         mkdir('results');
     end
+    
+    fprintf('========================================\n');
+    fprintf('  MPC Controller\n');
+    fprintf('========================================\n\n');
+    
     %% ========== LOAD IDENTIFIED MODEL ==========
     fprintf('Loading identified model...\n');
     load('results/identified_models.mat', 'identified_models');
@@ -16,7 +26,7 @@ function MPC_controller()
     u_mean = identified_models.u_mean;
     y_mean = identified_models.y_mean;
     
-    % Convert to discrete-time if continuous
+    % Convert to discrete-time
     if ~isdt(sys)
         sys_d = c2d(sys, dt, 'zoh');
     else
@@ -25,23 +35,28 @@ function MPC_controller()
     
     fprintf('  Using discrete-time model with Ts = %.2f s\n', dt);
     
-    %% ========== MPC PARAMETERS ==========
-    P = 30;             % Prediction horizon
-    M = 10;             % Control horizon
+    %% ========== MPC PARAMETERS FROM CONFIG ==========
+    P = config.MPC.P;
+    M = config.MPC.M;
+    Q_weight = config.MPC.Q_weight;
+    R_weight = config.MPC.R_weight;
     
-    % Weights
-    Q_weight = 1;       % Output tracking weight
-    R_weight = 0.01;    % Input change penalty
+    % Constraints from config
+    u_min = config.constraints.u_min;
+    u_max = config.constraints.u_max;
+    du_max = config.constraints.du_max;
     
-    % Constraints
-    u_min = 0;          % Min heater power [%]
-    u_max = 100;        % Max heater power [%]
-    du_max = 50;        % Max heater power change [%/sample]
+    fprintf('\nMPC Parameters:\n');
+    fprintf('  Prediction horizon (P): %d\n', P);
+    fprintf('  Control horizon (M): %d\n', M);
+    fprintf('  Q weight: %.3f\n', Q_weight);
+    fprintf('  R weight: %.3f\n', R_weight);
+    fprintf('  Constraints: u ∈ [%d, %d]%%, Δu ≤ %d%%\n', u_min, u_max, du_max);
+    fprintf('\n');
     
     %% ========== CREATE MPC OBJECT ==========
     fprintf('Creating MPC controller...\n');
     
-    % Create MPC controller
     mpcobj = mpc(sys_d, dt);
     
     % Set horizons
@@ -51,7 +66,7 @@ function MPC_controller()
     % Set weights
     mpcobj.Weights.OutputVariables = Q_weight;
     mpcobj.Weights.ManipulatedVariablesRate = R_weight;
-    mpcobj.Weights.ManipulatedVariables = 0;  % No penalty on absolute input
+    mpcobj.Weights.ManipulatedVariables = 0;
     
     % Set constraints (in deviation variables)
     mpcobj.ManipulatedVariables.Min = u_min - u_mean;
@@ -59,25 +74,26 @@ function MPC_controller()
     mpcobj.ManipulatedVariables.RateMin = -du_max;
     mpcobj.ManipulatedVariables.RateMax = du_max;
     
-    % Output constraints (none for now)
+    % Output constraints
     mpcobj.OutputVariables.Min = -Inf;
     mpcobj.OutputVariables.Max = Inf;
     
-    % Display MPC properties
-    fprintf('  Prediction Horizon: %d\n', mpcobj.PredictionHorizon);
-    fprintf('  Control Horizon: %d\n', mpcobj.ControlHorizon);
-    fprintf('  Sample Time: %.2f s\n', mpcobj.Ts);
+    fprintf('  MPC object created successfully\n');
     
     %% ========== SIMULATION PARAMETERS ==========
-    t_sim = 600;        % Simulation time [s]
+    t_sim = config.simulation.t_sim;
     t = 0:dt:t_sim;
     n_steps = length(t);
     
-    % Setpoint profile (in deviation variables)
-    T_setpoint_abs = zeros(n_steps, 1);
-    T_setpoint_abs(1:200) = 40;         % First setpoint: 40°C
-    T_setpoint_abs(201:400) = 50;       % Second setpoint: 50°C
-    T_setpoint_abs(401:end) = 35;       % Final setpoint: 35°C
+    % Build setpoint profile
+    T_setpoint_abs = build_setpoint_profile(config);
+    
+    fprintf('\nSimulation Parameters:\n');
+    fprintf('  Duration: %d s\n', t_sim);
+    fprintf('  Samples: %d\n', n_steps);
+    fprintf('  Setpoint changes: %s °C at %s s\n', ...
+            mat2str(config.setpoint.values), mat2str(config.setpoint.times));
+    fprintf('\n');
     
     %% ========== SIMULATION WITH MPC ==========
     fprintf('Running closed-loop simulation with MPC...\n');
@@ -85,8 +101,8 @@ function MPC_controller()
     % Initialize
     y = zeros(n_steps, 1);
     u = zeros(n_steps, 1);
-    y(1) = y_mean;      % Start at ambient temperature
-    u(1) = 0;           % Start with heater off
+    y(1) = y_mean;
+    u(1) = 0;
     
     % Initialize MPC state
     xmpc = mpcstate(mpcobj);
@@ -95,13 +111,13 @@ function MPC_controller()
     params = struct();
     params.dt = dt;
     params.T0 = y(1);
-    params.model_type = 'nonlinear';
+    params.model_type = config.thermal_model.model_type;
     
     for k = 1:n_steps-1
-        % Current output (deviation from operating point)
+        % Current output (deviation)
         y_dev = y(k) - y_mean;
         
-        % Setpoint (deviation from operating point)
+        % Setpoint (deviation)
         r_dev = T_setpoint_abs(k) - y_mean;
         
         % Compute optimal control move
@@ -109,19 +125,16 @@ function MPC_controller()
         
         % Convert to absolute input
         u_new = u_dev + u_mean;
-        
-        % Apply absolute constraints (safety check)
         u_new = max(u_min, min(u_max, u_new));
         u(k+1) = u_new;
         
-        % Simulate plant (one step)
+        % Simulate plant
         params.T0 = y(k);
         params.t_final = dt;
         Q_func = @(t) u(k+1);
         [T_sim, ~, ~] = thermal_model(Q_func, params);
         y(k+1) = T_sim(end);
         
-        % Debug output every 100 steps
         if mod(k, 100) == 0
             fprintf('  Step %d: T=%.2f°C, SP=%.2f°C, u=%.2f%%\n', ...
                     k, y(k), T_setpoint_abs(k), u(k));
@@ -131,14 +144,12 @@ function MPC_controller()
     %% ========== PERFORMANCE METRICS ==========
     fprintf('\nComputing performance metrics...\n');
     
-    % Calculate metrics
     error = T_setpoint_abs - y;
     MAE = mean(abs(error));
     RMSE = sqrt(mean(error.^2));
     ISE = sum(error.^2) * dt;
     IAE = sum(abs(error)) * dt;
     
-    % Control effort
     du = [0; diff(u)];
     control_effort = sum(abs(du));
     
@@ -161,7 +172,8 @@ function MPC_controller()
     MPC_results.IAE = IAE;
     MPC_results.control_effort = control_effort;
     MPC_results.params = struct('P', P, 'M', M, 'Q', Q_weight, 'R', R_weight);
-    MPC_results.mpcobj = mpcobj;  % Save MPC object for reference
+    MPC_results.mpcobj = mpcobj;
+    MPC_results.config = config;
     
     save('results/MPC_results.mat', 'MPC_results');
     fprintf('\nSaved: results/MPC_results.mat\n');
@@ -169,28 +181,25 @@ function MPC_controller()
     %% ========== PLOTTING ==========
     fprintf('Generating plots...\n');
     
-    figure('Position', [100, 100, 1200, 800]);
+    figure('Position', config.plotting.figure_size);
     
-    % Temperature tracking
     subplot(3,1,1);
-    plot(t, T_setpoint_abs, 'k--', 'LineWidth', 1.5); hold on;
-    plot(t, y, 'r', 'LineWidth', 1.5);
+    plot(t, T_setpoint_abs, 'k--', 'LineWidth', 2); hold on;
+    plot(t, y, 'Color', config.plotting.colors.MPC, 'LineWidth', config.plotting.linewidth);
     xlabel('Time [s]'); ylabel('Temperature [°C]');
     legend('Setpoint', 'MPC Output', 'Location', 'best');
     title('MPC Controller - Temperature Tracking');
     grid on;
     
-    % Control input
     subplot(3,1,2);
-    stairs(t, u, 'b', 'LineWidth', 1.5);
+    stairs(t, u, 'Color', config.plotting.colors.MPC, 'LineWidth', config.plotting.linewidth);
     xlabel('Time [s]'); ylabel('Heater Power [%]');
     title('MPC Controller - Control Input');
     ylim([u_min-5, u_max+5]);
     grid on;
     
-    % Tracking error
     subplot(3,1,3);
-    plot(t, error, 'r', 'LineWidth', 1.5);
+    plot(t, error, 'r', 'LineWidth', config.plotting.linewidth);
     xlabel('Time [s]'); ylabel('Error [°C]');
     title('MPC Controller - Tracking Error');
     grid on;

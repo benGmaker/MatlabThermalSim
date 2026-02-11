@@ -1,24 +1,33 @@
-function system_identification()
+function system_identification(config)
 % SYSTEM_IDENTIFICATION Identifies transfer function models from experimental data
-% Uses tfest to estimate models from step, impulse, or multisine data
+% IMPROVED: Uses centralized configuration
 
-    clc; close all;
+    if nargin < 1
+        config = config_simulation();
+    end
+    
+    close all;
     
     % Create results directory if it doesn't exist
     if ~exist('results', 'dir')
         mkdir('results');
     end
     
-    %% ========== PARAMETERS ==========
-    % Choose which dataset to use: 'step', 'impulse', or 'multisine'
-    dataset_choice = 'multisine';  % Best for identification
+    fprintf('========================================\n');
+    fprintf('  System Identification\n');
+    fprintf('========================================\n\n');
     
-    % Model order
-    n_poles = 2;        % Number of poles
-    n_zeros = 1;        % Number of zeros
+    %% ========== PARAMETERS FROM CONFIG ==========
+    dataset_choice = config.system_id.dataset_choice;
+    n_poles = config.system_id.n_poles;
+    n_zeros = config.system_id.n_zeros;
+    validation_fraction = config.system_id.validation_fraction;
     
-    % Validation split
-    validation_fraction = 0.3;  % Use 30% for validation
+    fprintf('Identification Parameters:\n');
+    fprintf('  Dataset: %s\n', dataset_choice);
+    fprintf('  Model order: %d poles, %d zeros\n', n_poles, n_zeros);
+    fprintf('  Validation fraction: %.1f%%\n', validation_fraction * 100);
+    fprintf('\n');
     
     %% ========== LOAD DATA ==========
     fprintf('Loading %s response data...\n', dataset_choice);
@@ -34,20 +43,23 @@ function system_identification()
             data = load('results/multisine_response_data.mat');
             exp_data = data.multisine_data;
         otherwise
-            error('Unknown dataset choice');
+            error('Unknown dataset choice: %s', dataset_choice);
     end
     
-    %% ========== PREPARE DATA FOR IDENTIFICATION ==========
+    %% ========== PREPARE DATA ==========
     t = exp_data.t;
-    u = exp_data.Q;  % Input: heater power
-    y = exp_data.T;  % Output: temperature
+    u = exp_data.Q;
+    y = exp_data.T;
     dt = exp_data.params.dt;
     
-    % Remove mean for better identification
+    % Remove mean
     u_mean = mean(u);
     y_mean = mean(y);
     u_centered = u - u_mean;
     y_centered = y - y_mean;
+    
+    fprintf('  Input mean: %.2f, std: %.2f\n', u_mean, std(u));
+    fprintf('  Output mean: %.2f, std: %.2f\n', y_mean, std(y));
     
     % Create iddata object
     data_full = iddata(y_centered, u_centered, dt);
@@ -61,12 +73,11 @@ function system_identification()
     data_val = data_full(n_est+1:end);
     
     fprintf('  Estimation samples: %d\n', n_est);
-    fprintf('  Validation samples: %d\n', n_val);
+    fprintf('  Validation samples: %d\n\n', n_val);
     
     %% ========== TRANSFER FUNCTION ESTIMATION ==========
-    fprintf('\nEstimating transfer function model...\n');
+    fprintf('Estimating transfer function model...\n');
     
-    % Estimate transfer function
     sys_tf = tfest(data_est, n_poles, n_zeros);
     
     fprintf('  Identified Transfer Function:\n');
@@ -80,7 +91,6 @@ function system_identification()
     %% ========== STATE-SPACE ESTIMATION ==========
     fprintf('\nEstimating state-space model...\n');
     
-    % Estimate state-space model
     sys_ss = ssest(data_est, n_poles);
     
     fprintf('  State-space model order: %d\n', order(sys_ss));
@@ -88,7 +98,6 @@ function system_identification()
     %% ========== MODEL VALIDATION ==========
     fprintf('\nValidating models...\n');
     
-    % Compare models
     [y_tf, fit_tf, ~] = compare(data_val, sys_tf);
     [y_ss, fit_ss, ~] = compare(data_val, sys_ss);
     
@@ -105,6 +114,7 @@ function system_identification()
     identified_models.fit_tf = fit_tf;
     identified_models.fit_ss = fit_ss;
     identified_models.dataset_used = dataset_choice;
+    identified_models.config = config;
     
     save('results/identified_models.mat', 'identified_models');
     fprintf('\nSaved: results/identified_models.mat\n');
@@ -112,7 +122,7 @@ function system_identification()
     %% ========== PLOTTING ==========
     fprintf('Generating plots...\n');
     
-    figure('Position', [100, 100, 1400, 900]);
+    figure('Position', config.plotting.figure_size);
     
     % Estimation data fit
     subplot(2,3,1);

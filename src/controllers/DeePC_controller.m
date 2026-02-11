@@ -1,67 +1,82 @@
-function DeePC_controller()
+function DeePC_controller(config)
 % DEEPC_CONTROLLER Implements Data-enabled Predictive Control
-% Uses collected data directly without explicit model identification
+% IMPROVED: Uses centralized configuration
 
-    clc; close all;
-    % Create results directory if it doesn't exist
+    if nargin < 1
+        config = config_simulation();
+    end
+    
+    close all;
+    
+    % Create results directory
     if ~exist('results', 'dir')
         mkdir('results');
     end
+    
+    fprintf('========================================\n');
+    fprintf('  DeePC Controller\n');
+    fprintf('========================================\n\n');
+    
     %% ========== LOAD DATA FOR DeePC ==========
     fprintf('Loading data for DeePC...\n');
     
-    % Use multisine data for DeePC (best excitation)
     load('results/multisine_response_data.mat', 'multisine_data');
     
     u_data = multisine_data.Q;
     y_data = multisine_data.T;
     dt = multisine_data.params.dt;
     
-    % Center the data (remove mean)
+    % Center the data
     u_mean = mean(u_data);
     y_mean = mean(y_data);
     u_data = u_data - u_mean;
     y_data = y_data - y_mean;
     
-    L = length(u_data);  % Total data length
+    L = length(u_data);
     
     fprintf('  Data length: %d samples\n', L);
     fprintf('  Input mean: %.2f, std: %.2f\n', u_mean, std(u_data));
     fprintf('  Output mean: %.2f, std: %.2f\n', y_mean, std(y_data));
     
-    %% ========== DeePC PARAMETERS ==========
-    T_ini = 5;          % Past horizon (reduced for better conditioning)
-    N = 15;             % Future horizon (reduced for stability)
+    %% ========== DeePC PARAMETERS FROM CONFIG ==========
+    T_ini = config.DeePC.T_ini;
+    N = config.DeePC.N;
+    lambda_y = config.DeePC.lambda_y;
+    lambda_g = config.DeePC.lambda_g;
+    lambda_u = config.DeePC.lambda_u;
     
-    % Increase slack variable penalties
-    lambda_y = 1000;     % Increased from 100
-    lambda_g = 1000;     % Increased from 10  
-    lambda_u = 10;       % Increased from 1
-
-    % Constraints
-    u_min = 0 - u_mean;     % Min heater power (deviation)
-    u_max = 100 - u_mean;   % Max heater power (deviation)
-    du_max = 50;            % Max heater power change (increased)
+    % Constraints from config
+    u_min = config.constraints.u_min - u_mean;
+    u_max = config.constraints.u_max - u_mean;
+    du_max = config.constraints.du_max;
+    
+    fprintf('\nDeePC Parameters:\n');
+    fprintf('  Past horizon (T_ini): %d\n', T_ini);
+    fprintf('  Future horizon (N): %d\n', N);
+    fprintf('  Lambda_y: %.1f\n', lambda_y);
+    fprintf('  Lambda_g: %.1f\n', lambda_g);
+    fprintf('  Lambda_u: %.1f\n', lambda_u);
+    fprintf('  Constraints: u ∈ [%.1f, %.1f]%%, Δu ≤ %d%%\n', ...
+            u_min+u_mean, u_max+u_mean, du_max);
+    fprintf('\n');
     
     %% ========== BUILD HANKEL MATRICES ==========
     fprintf('Building Hankel matrices...\n');
     
-    T = T_ini + N;  % Total horizon
+    T = T_ini + N;
     
-    % Check data sufficiency (Willems' fundamental lemma)
-    min_cols = (T_ini + N + 1) * 2;  % Conservative estimate
+    min_cols = (T_ini + N + 1) * 2;
     if L < T + min_cols
         warning('Data length may be insufficient. Consider longer experiments.');
     end
     
-    % Number of columns in Hankel matrix
     n_cols = L - T + 1;
     
     % Build Hankel matrices
-    U_p = zeros(T_ini, n_cols);  % Past inputs
-    Y_p = zeros(T_ini, n_cols);  % Past outputs
-    U_f = zeros(N, n_cols);      % Future inputs
-    Y_f = zeros(N, n_cols);      % Future outputs
+    U_p = zeros(T_ini, n_cols);
+    Y_p = zeros(T_ini, n_cols);
+    U_f = zeros(N, n_cols);
+    Y_f = zeros(N, n_cols);
     
     for i = 1:n_cols
         U_p(:,i) = u_data(i:i+T_ini-1);
@@ -74,16 +89,20 @@ function DeePC_controller()
     fprintf('  Condition number of [Up; Yp]: %.2e\n', cond([U_p; Y_p]));
     
     %% ========== SIMULATION PARAMETERS ==========
-    t_sim = 600;
+    t_sim = config.simulation.t_sim;
     t = 0:dt:t_sim;
     n_steps = length(t);
     
     % Setpoint profile (deviation from mean)
-    T_setpoint_abs = zeros(n_steps, 1);
-    T_setpoint_abs(1:200) = 40;
-    T_setpoint_abs(201:400) = 50;
-    T_setpoint_abs(401:end) = 35;
+    T_setpoint_abs = build_setpoint_profile(config);
     T_setpoint = T_setpoint_abs - y_mean;
+    
+    fprintf('\nSimulation Parameters:\n');
+    fprintf('  Duration: %d s\n', t_sim);
+    fprintf('  Samples: %d\n', n_steps);
+    fprintf('  Setpoint changes: %s °C at %s s\n', ...
+            mat2str(config.setpoint.values), mat2str(config.setpoint.times));
+    fprintf('\n');
     
     %% ========== SIMULATION WITH DeePC ==========
     fprintf('Running closed-loop simulation with DeePC...\n');
@@ -91,20 +110,19 @@ function DeePC_controller()
     % Initialize
     y = zeros(n_steps, 1);
     u = zeros(n_steps, 1);
-    y(1) = 0;  % Start at equilibrium (deviation = 0)
+    y(1) = 0;
     u(1) = 0;
     
     % Thermal model parameters
     params = struct();
     params.dt = dt;
     params.T0 = y_mean;
-    params.model_type = 'nonlinear';
+    params.model_type = config.thermal_model.model_type;
     
     % Storage for past data
     u_ini = zeros(T_ini, 1);
     y_ini = zeros(T_ini, 1);
     
-    % Track solver failures
     n_failures = 0;
     
     for k = 1:n_steps-1
@@ -113,7 +131,6 @@ function DeePC_controller()
         len = min(T_ini, k);
         
         if len < T_ini
-            % Pad with zeros if not enough history
             u_ini(end-len+1:end) = u(start_idx:k);
             y_ini(end-len+1:end) = y(start_idx:k);
         else
@@ -127,7 +144,7 @@ function DeePC_controller()
             r = [r; r(end)*ones(N-length(r), 1)];
         end
         
-        % Solve DeePC optimization problem
+        % Solve DeePC optimization
         [u_opt, status] = solve_deepc_qp(U_p, Y_p, U_f, Y_f, ...
                                           u_ini, y_ini, r, ...
                                           lambda_y, lambda_g, lambda_u, ...
@@ -136,10 +153,9 @@ function DeePC_controller()
         if status == 0
             u(k+1) = u_opt(1);
         else
-            % If optimization fails, use fallback controller
+            % Fallback controller
             n_failures = n_failures + 1;
             error_current = r(1) - y(k);
-            % Simple proportional controller as fallback
             Kp = 2.0;
             u(k+1) = u(k) + Kp * error_current;
             u(k+1) = max(u_min, min(u_max, u(k+1)));
@@ -156,7 +172,6 @@ function DeePC_controller()
         [T_sim, ~, ~] = thermal_model(Q_func, params);
         y(k+1) = T_sim(end) - y_mean;
         
-        % Debug output
         if mod(k, 100) == 0
             fprintf('  Step %d: T=%.2f°C, SP=%.2f°C, u=%.2f%%\n', ...
                     k, y(k)+y_mean, T_setpoint_abs(k), u(k)+u_mean);
@@ -201,7 +216,8 @@ function DeePC_controller()
     DeePC_results.control_effort = control_effort;
     DeePC_results.n_failures = n_failures;
     DeePC_results.params = struct('T_ini', T_ini, 'N', N, ...
-                                   'lambda_y', lambda_y, 'lambda_g', lambda_g);
+                                   'lambda_y', lambda_y, 'lambda_g', lambda_g, 'lambda_u', lambda_u);
+    DeePC_results.config = config;
     
     save('results/DeePC_results.mat', 'DeePC_results');
     fprintf('\nSaved: results/DeePC_results.mat\n');
@@ -209,24 +225,24 @@ function DeePC_controller()
     %% ========== PLOTTING ==========
     fprintf('Generating plots...\n');
     
-    figure('Position', [100, 100, 1200, 800]);
+    figure('Position', config.plotting.figure_size);
     
     subplot(3,1,1);
-    plot(t, T_setpoint_abs, 'k--', 'LineWidth', 1.5); hold on;
-    plot(t, y_abs, 'r', 'LineWidth', 1.5);
+    plot(t, T_setpoint_abs, 'k--', 'LineWidth', 2); hold on;
+    plot(t, y_abs, 'Color', config.plotting.colors.DeePC, 'LineWidth', config.plotting.linewidth);
     xlabel('Time [s]'); ylabel('Temperature [°C]');
     legend('Setpoint', 'DeePC Output', 'Location', 'best');
     title('DeePC Controller - Temperature Tracking');
     grid on;
     
     subplot(3,1,2);
-    stairs(t, u_abs, 'b', 'LineWidth', 1.5);
+    stairs(t, u_abs, 'Color', config.plotting.colors.DeePC, 'LineWidth', config.plotting.linewidth);
     xlabel('Time [s]'); ylabel('Heater Power [%]');
     title('DeePC Controller - Control Input');
     grid on;
     
     subplot(3,1,3);
-    plot(t, error, 'r', 'LineWidth', 1.5);
+    plot(t, error, 'r', 'LineWidth', config.plotting.linewidth);
     xlabel('Time [s]'); ylabel('Error [°C]');
     title('DeePC Controller - Tracking Error');
     grid on;
@@ -241,7 +257,6 @@ end
 function [u_opt, status] = solve_deepc_qp(U_p, Y_p, U_f, Y_f, u_ini, y_ini, r, ...
                                            lambda_y, lambda_g, lambda_u, ...
                                            u_min, u_max, du_max, u_prev)
-% Solve DeePC quadratic programming problem with improved numerics
     
     [N, n_cols] = size(U_f);
     T_ini = size(U_p, 1);
@@ -253,7 +268,7 @@ function [u_opt, status] = solve_deepc_qp(U_p, Y_p, U_f, Y_f, u_ini, y_ini, r, .
     n_sigma_u = T_ini;
     n_vars = n_g + n_u + n_sigma_y + n_sigma_u;
     
-    % Cost function: min 0.5*x'*H*x + f'*x
+    % Cost function
     H = zeros(n_vars);
     f = zeros(n_vars, 1);
     
@@ -262,21 +277,21 @@ function [u_opt, status] = solve_deepc_qp(U_p, Y_p, U_f, Y_f, u_ini, y_ini, r, .
     idx_sigma_y = n_g + n_u + (1:n_sigma_y);
     idx_sigma_u = n_g + n_u + n_sigma_y + (1:n_sigma_u);
     
-    % Output tracking cost: ||Y_f*g - r||^2
+    % Output tracking cost
     H(idx_g, idx_g) = 2 * (Y_f' * Y_f);
     f(idx_g) = -2 * Y_f' * r;
     
-    % Input regularization: lambda_u * ||u||^2
+    % Input regularization
     H(idx_u, idx_u) = 2 * lambda_u * eye(n_u);
     
     % Slack variable penalties
-    H(idx_sigma_y, idx_sigma_y) = 2 * lambda_y * eye(n_sigma_y);  % lambda_y for output slack
-    H(idx_sigma_u, idx_sigma_u) = 2 * lambda_g * eye(n_sigma_u);  % lambda_g for input slack
+    H(idx_sigma_y, idx_sigma_y) = 2 * lambda_y * eye(n_sigma_y);
+    H(idx_sigma_u, idx_sigma_u) = 2 * lambda_g * eye(n_sigma_u);
     
     % Ensure H is positive definite
     H = H + 1e-6 * eye(n_vars);
     
-    % Equality constraints: [U_p; Y_p; U_f] * g = [u_ini + sigma_u; y_ini + sigma_y; u]
+    % Equality constraints
     A_eq = zeros(T_ini + T_ini + N, n_vars);
     b_eq = zeros(T_ini + T_ini + N, 1);
     
@@ -299,21 +314,21 @@ function [u_opt, status] = solve_deepc_qp(U_p, Y_p, U_f, Y_f, u_ini, y_ini, r, .
     A_ineq = [];
     b_ineq = [];
     
-    % Input bounds: u_min <= u <= u_max
+    % Input bounds
     A_u = [zeros(2*N, n_g), [eye(N); -eye(N)], zeros(2*N, n_sigma_y + n_sigma_u)];
     b_u = [u_max * ones(N, 1); -u_min * ones(N, 1)];
     
     A_ineq = [A_ineq; A_u];
     b_ineq = [b_ineq; b_u];
     
-    % Rate constraint on first moves
+    % Rate constraint
     A_rate = [zeros(2, n_g), [1, zeros(1, N-1); -1, zeros(1, N-1)], zeros(2, n_sigma_y + n_sigma_u)];
     b_rate = [u_prev + du_max; -u_prev + du_max];
     
     A_ineq = [A_ineq; A_rate];
     b_ineq = [b_ineq; b_rate];
     
-    % Solve QP with better options
+    % Solve QP
     options = optimoptions('quadprog', 'Display', 'off', ...
                            'MaxIterations', 200, ...
                            'ConstraintTolerance', 1e-5, ...
@@ -330,7 +345,6 @@ function [u_opt, status] = solve_deepc_qp(U_p, Y_p, U_f, Y_f, u_ini, y_ini, r, .
             status = -1;
         end
     catch ME
-        % If solver crashes completely
         u_opt = zeros(N, 1);
         status = -1;
     end
