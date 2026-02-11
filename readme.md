@@ -76,6 +76,13 @@ addpath(genpath('path/to/MatlabThermalSim'))
 
 ### Basic Workflow
 
+#### Run all tests
+   ```matlab
+   run_closed_loop_test;
+   ```
+
+#### Step by step
+
 1. **Configure Simulation Parameters**
    
    Edit `config_simulation.m` to set controller parameters, constraints, and simulation settings.
@@ -101,11 +108,6 @@ addpath(genpath('path/to/MatlabThermalSim'))
    DeePC_controller(config);
    ```
 
-5. **Compare Controller Performance**
-   
-   ```matlab
-   run_closed_loop_test;
-   ```
 
 ### Configuration
 
@@ -182,35 +184,9 @@ This implementation is based on the TCLab (Temperature Control Laboratory) platf
 
 - Hedengren, J. D., & Martin, R. A. (2020). Temperature Control Lab for Dynamics and Control. *IFAC-PapersOnLine*, 53(2), 17503-17508.
 
-### Related Publications
-
-If you use this code in your research, please consider citing:
-
-```bibtex
-@software{thermal_sim_2024,
-  author = {benGmaker},
-  title = {MATLAB Thermal Simulation Environment},
-  year = {2024},
-  publisher = {GitHub},
-  url = {https://github.com/benGmaker/MatlabThermalSim}
-}
-```
-
 ## License
 
 This project is available under standard academic use terms. Please contact the author for commercial applications.
-
-## Contributing
-
-Contributions are welcome. Please follow these guidelines:
-- Maintain consistent code documentation style
-- Include unit tests for new features
-- Update configuration parameters as needed
-- Follow MATLAB coding best practices
-
-## Contact
-
-For questions or collaboration inquiries, please open an issue on the GitHub repository.
 
 ## Acknowledgments
 
