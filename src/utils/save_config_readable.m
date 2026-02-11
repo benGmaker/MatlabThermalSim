@@ -25,6 +25,18 @@ function save_config_readable(config, filename)
     fprintf(fid, 'Sampling Time:                %.1f s\n', config.simulation.dt);
     fprintf(fid, '\n');
     
+    % Noise Parameters
+    fprintf(fid, '--- NOISE PARAMETERS ---\n');
+    fprintf(fid, 'Noise Enabled:                %s\n', num2str(config.noise.enable));
+    fprintf(fid, 'Noise Type:                   %s\n', config.noise.type);
+    fprintf(fid, 'Target SNR:                   %.1f dB\n', config.noise.SNR_dB);
+    fprintf(fid, 'Random Seed:                  %d\n', config.noise.seed);
+    if strcmpi(config.noise.type, 'colored')
+        fprintf(fid, 'Filter Order:                 %d\n', config.noise.colored_filter_order);
+        fprintf(fid, 'Cutoff Frequency:             %.3f (normalized)\n', config.noise.colored_cutoff_freq);
+    end
+    fprintf(fid, '\n');
+
     % Setpoint Profile
     fprintf(fid, '--- SETPOINT PROFILE ---\n');
     fprintf(fid, 'Times:                        %s s\n', mat2str(config.setpoint.times));

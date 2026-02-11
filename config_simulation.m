@@ -42,6 +42,17 @@ function config = config_simulation()
     config.DeePC.lambda_g = 1000;           % Slack penalty (Hankel constraint)
     config.DeePC.lambda_u = 10;             % Input regularization
     
+    %% ========== NOISE PARAMETERS ==========
+    % Noise is added to measurement data during data collection
+    config.noise.enable = true;                 % Enable/disable noise
+    config.noise.type = 'uniform';             % 'gaussian', 'uniform', or 'colored'
+    config.noise.SNR_dB = 10;                   % Desired Signal-to-Noise Ratio [dB]
+    config.noise.seed = 66;                     % Random seed (for reproducibility)
+    
+    % For colored noise only
+    config.noise.colored_filter_order = 2;      % Filter order for colored noise
+    config.noise.colored_cutoff_freq = 0.1;     % Normalized cutoff frequency [0-1]
+    
     %% ========== DATA COLLECTION PARAMETERS ==========
     config.data_collection.t_final = 600;           % Experiment duration [s]
     config.data_collection.dt = 1;                  % Sampling time [s]
@@ -104,6 +115,8 @@ function print_config_summary(config)
             config.constraints.u_min, config.constraints.u_max, config.constraints.du_max);
     fprintf('Setpoint Profile: %s °C at times %s s\n', ...
             mat2str(config.setpoint.values), mat2str(config.setpoint.times));
+    fprintf('Noise: %s, Type: %s, SNR: %.1f dB\n', ...
+            char(config.noise.enable), config.noise.type, config.noise.SNR_dB);
     fprintf('MPC Horizons: P=%d, M=%d\n', config.MPC.P, config.MPC.M);
     fprintf('DMC Horizons: P=%d, M=%d, N=%d\n', config.DMC.P, config.DMC.M, config.DMC.N);
     fprintf('DeePC Horizons: T_ini=%d, N=%d\n', config.DeePC.T_ini, config.DeePC.N);
