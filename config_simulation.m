@@ -26,6 +26,31 @@ function config = config_simulation()
     config.MPC.M = 10;                      % Control horizon [samples]
     config.MPC.Q_weight = 1;                % Output tracking weight
     config.MPC.R_weight = 0.01;             % Input change penalty
+
+    %% ========== SPC (Subspace Predictive Control) PARAMETERS ==========
+    % SPC flow:
+    %   1) Identify a state-space model via subspace ID (n4sid) from measured IO data
+    %   2) Build a standard linear MPC using that identified ss model
+    %
+    % Data source: uses the same dataset saved by experiment_data_collection:
+    %   results/multisine_response_data.mat (multisine_data.Q, multisine_data.T)
+    config.plotting.colors.SPC = [0.49, 0.18, 0.56]; % purple-ish
+    config.SPC.ident.method = 'n4sid';      % 'n4sid' (recommended)
+    config.SPC.ident.nx = 2;                % identified state dimension (tune 2..6)
+    config.SPC.ident.focus = 'simulation';  % 'simulation' or 'prediction'
+    config.SPC.ident.form = 'canonical';    % passed to ssestOptions/n4sidOptions if used
+    config.SPC.ident.data_source = 'multisine'; % 'multisine' only (for now)
+
+    % Horizons / weights (similar meaning to MPC)
+    config.SPC.P = 30;                      % prediction horizon [samples]
+    config.SPC.M = 10;                      % control horizon [samples]
+    config.SPC.Q_weight = 1;                % output tracking weight
+    config.SPC.R_weight = 0.01;             % input move penalty
+
+    % Optional: estimation/observer noise tuning (if you later add Kalman filter)
+    config.SPC.estimator.enable = false;
+    config.SPC.estimator.Qn = 1e-4;         % process noise covariance scalar
+    config.SPC.estimator.Rn = 1e-2;         % measurement noise covariance scalar
     
     %% ========== DMC PARAMETERS ==========
     config.DMC.P = 30;                      % Prediction horizon [samples]

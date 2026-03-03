@@ -74,8 +74,16 @@ function run_closed_loop_test()
     fprintf('✓ Complete. Log: results/CLI_output/step5_DeePC_controller.txt\n\n');
     clc;
     
-    %% Step 6: Comparison
-    fprintf('STEP 6: Controller Comparison\n');
+    %% Step 6: SPC Controller
+    fprintf('STEP 6: SPC Controller Simulation\n');
+    diary('results/CLI_output/step6_SPC_controller.txt');
+    SPC_controller(config);
+    diary off;
+    fprintf('✓ Complete. Log: results/CLI_output/step6_SPC_controller.txt\n\n');
+    clc;
+
+    %% Step 7: Comparison
+    fprintf('STEP 7: Controller Comparison\n');
     diary('results/CLI_output/step6_comparison.txt');
     compare_controllers(config);
     diary off;
