@@ -8,6 +8,7 @@ function DeePC_results = run_closed_loop_deepc(config)
     if ~exist('results', 'dir'), mkdir('results'); end
 
     config.ref_preview_horizon = config.DeePC.N;
+    config.controller_name = 'DeePC';
 
     [ctrl_step, ctrl_init, meta] = deepc_policy_factory(config);
 

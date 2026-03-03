@@ -53,7 +53,7 @@ function config = config_simulation()
     config.SPC.estimator.Rn = 1e-2;         % measurement noise covariance scalar
     
     %% ========== DMC PARAMETERS ==========
-    config.DMC.P = 30;                      % Prediction horizon [samples]
+    config.DMC.P = 20;                      % Prediction horizon [samples]
     config.DMC.M = 10;                      % Control horizon [samples]
     config.DMC.N = 100;                     % Model horizon (step response length) [samples]
     config.DMC.Q_weight = 1;                % Output tracking weight

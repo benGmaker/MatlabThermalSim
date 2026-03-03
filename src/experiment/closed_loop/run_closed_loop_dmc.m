@@ -5,6 +5,7 @@ function DMC_results = run_closed_loop_dmc(config)
     if ~exist('results','dir'), mkdir('results'); end
 
     config.ref_preview_horizon = config.DMC.P;
+    config.controller_name = 'DMC';
 
     [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config);
 

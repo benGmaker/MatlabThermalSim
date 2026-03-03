@@ -78,7 +78,7 @@ function run_closed_loop_test()
     run_closed_loop_deepc(config);
     diary off;
     fprintf('✓ Complete. Log: results/CLI_output/step5_DeePC_controller.txt\n\n');
-    clc;
+    %clc;
 
     %% Step 6: SPC Controller (NEW experiment runner)
     fprintf('STEP 6: SPC Controller Simulation\n');

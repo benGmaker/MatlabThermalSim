@@ -15,6 +15,7 @@ function SPC_results = run_closed_loop_spc(config)
 
     % SPC uses current reference only in mpcmove, but keep preview=1
     config.ref_preview_horizon = 1;
+    config.controller_name = 'SPC';
 
     % Build controller policy
     [ctrl_step, ctrl_init, meta] = spc_policy_factory(config);

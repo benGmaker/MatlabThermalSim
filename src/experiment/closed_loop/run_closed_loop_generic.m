@@ -59,5 +59,32 @@ function [results, ctrl_final] = run_closed_loop_generic(config, controller, con
     results.error = r_abs - y;
     results.metrics = compute_metrics(results.error, u, dt);
 
+    % ---- Command line performance stats ----
+    fprintf('\n----------------------------------------\n');
+    if isfield(config, 'controller_name')
+        fprintf('Closed-loop run complete: %s\n', string(config.controller_name));
+    else
+        fprintf('Closed-loop run complete\n');
+    end
+    fprintf('Samples: %d, dt: %.4g s, t_sim: %.4g s\n', n_steps, dt, t_sim);
+
+    m = results.metrics;
+    if isstruct(m)
+        if isfield(m,'MAE'), fprintf('MAE            : %.6g\n', m.MAE); end
+        if isfield(m,'RMSE'), fprintf('RMSE           : %.6g\n', m.RMSE); end
+        if isfield(m,'ISE'), fprintf('ISE            : %.6g\n', m.ISE); end
+        if isfield(m,'IAE'), fprintf('IAE            : %.6g\n', m.IAE); end
+        if isfield(m,'control_effort'), fprintf('Control effort : %.6g\n', m.control_effort); end
+    end
+
+    e = results.error;
+    if ~isempty(e)
+        fprintf('Error stats    : min %.6g | mean %.6g | max %.6g\n', min(e), mean(e), max(e));
+    end
+    fprintf('y stats        : min %.6g | mean %.6g | max %.6g\n', min(y), mean(y), max(y));
+    fprintf('u stats        : min %.6g | mean %.6g | max %.6g\n', min(u), mean(u), max(u));
+    fprintf('----------------------------------------\n');
+    % ---------------------------------------
+
     ctrl_final = ctrl;
 end
