@@ -2,9 +2,9 @@ function [predictor_step, predictor_init, meta] = mpc_offline_predictor_factory(
 %MPC_OFFLINE_PREDICTOR_FACTORY
 % Offline 1-step predictor using identified_models.sys_ss (same model used by MPC pipeline).
 
-    if nargin < 1, config = config_simulation(); end %#ok<INUSD>
+    if nargin < 1, config = config_simulation(); end 
 
-    data = load('results/identified_models.mat', 'identified_models');
+    data = load('results/data/identified_models.mat', 'identified_models');
     identified_models = data.identified_models;
 
     if ~isfield(identified_models, 'sys_ss') || isempty(identified_models.sys_ss)
@@ -42,7 +42,7 @@ function [predictor_step, predictor_init, meta] = mpc_offline_predictor_factory(
         pred.L_gain = L_gain;
     end
 
-    function [y_hat_next_abs, pred] = step(k, y_k_abs, u_k_abs, pred, config) %#ok<INUSD>
+    function [y_hat_next_abs, pred] = step(k, y_k_abs, u_k_abs, pred, config)
         y_k = y_k_abs - pred.y_mean;
         u_k = u_k_abs - pred.u_mean;
 

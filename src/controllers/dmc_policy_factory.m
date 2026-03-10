@@ -1,8 +1,10 @@
 function [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config)
 %DMC_POLICY_FACTORY Returns controller step function + initializer + meta.
-
+    
+    % todo remove upgrade model u_mean y_mean dt to the one of the step
+    % response
     % Load model once
-    data = load('results/identified_models.mat', 'identified_models');
+    data = load('results/data/identified_models.mat', 'identified_models');
     identified_models = data.identified_models;
 
     dt = identified_models.dt;
@@ -10,12 +12,12 @@ function [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config)
     y_mean = identified_models.y_mean;
 
     % DMC params
-    P = config.DMC.P;
-    M = config.DMC.M;
+    P = config.predictive.P;
+    M = config.predictive.M;
     N = config.DMC.N;
 
-    Q_weight = config.DMC.Q_weight;
-    R_weight = config.DMC.R_weight;
+    Q_weight = config.predictive.Q_weight;
+    R_weight = config.predictive.R_weight;
 
     % Constraints
     u_min = config.constraints.u_min;
@@ -23,16 +25,7 @@ function [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config)
     du_max = config.constraints.du_max;
 
     % Step response
-    switch config.DMC.step_response_source
-        case 'measured'
-            S = get_measured_step_response(N, dt, u_mean, y_mean);
-        case 'ss_model'
-            S = get_model_step_response(identified_models.sys_ss, N, dt);
-        case 'tf_model'
-            S = get_model_step_response(identified_models.sys_tf, N, dt);
-        otherwise
-            error('Unknown step response source: %s', config.DMC.step_response_source);
-    end
+    S = get_measured_step_response(N, dt, u_mean, y_mean);
 
     % Build G
     G = zeros(P, M);
@@ -76,8 +69,6 @@ function [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config)
     meta.N = N;
 
     function [u_next, ctrl] = step(k, y_k, r_traj_abs, ctrl, config)
-        %#ok<INUSD> k config
-
         % Deviation variables
         y_dev = y_k - ctrl.y_mean;
 
@@ -109,43 +100,3 @@ function [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config)
     end
 end
 
-% --- reuse your existing helpers (can move to common/ if you want)
-function S = get_measured_step_response(N, dt, u_mean, y_mean) %#ok<INUSD>
-    data = load('results/step_response_data.mat');
-    step_data = data.step_data;
-
-    if isfield(step_data, 'step_idx')
-        step_idx = step_data.step_idx;
-    else
-        step_idx = find(step_data.Q > mean(step_data.Q), 1, 'first');
-    end
-
-    if isfield(step_data, 'step_amplitude')
-        step_magnitude = step_data.step_amplitude;
-    else
-        u_before = mean(step_data.Q(1:max(1,step_idx-1)));
-        u_after = mean(step_data.Q(step_idx:min(step_idx+10, end)));
-        step_magnitude = u_after - u_before;
-    end
-
-    y_before = mean(step_data.T(1:max(1,step_idx-1)));
-    y_response = step_data.T(step_idx:end) - y_before;
-    y_unit_step = y_response / step_magnitude;
-
-    if length(y_unit_step) >= N
-        S = y_unit_step(1:N);
-    else
-        S = [y_unit_step; y_unit_step(end) * ones(N - length(y_unit_step), 1)];
-    end
-    S = S(:);
-end
-
-function S = get_model_step_response(sys, N, dt)
-    [y_step, ~] = step(sys, (0:N-1)*dt);
-    S = y_step(:);
-    if numel(S) < N
-        S(end+1:N,1) = S(end);
-    else
-        S = S(1:N);
-    end
-end

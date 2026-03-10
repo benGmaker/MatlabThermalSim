@@ -1,8 +1,7 @@
 
-function run_closed_loop_test()
-% RUN_CLOSED_LOOP_TEST Compare DMC, MPC, DeePC, and SPC controller performance
-% UPDATED: calls the new experiment runners (experiments/run_closed_loop_*.m)
-% and keeps the same CLI logging structure.
+function run_tests()
+% RUN_TESTS Compare DMC, MPC, DeePC, and SPC controller performance in
+% closed loop and offline predictive 
 
     clc; close all;
    
@@ -22,7 +21,10 @@ function run_closed_loop_test()
     if ~exist('results/CLI_output', 'dir')
         mkdir('results/CLI_output');
     end
-
+    if ~exist('results/data', 'dir')
+        mkdir('results/data');
+    end
+    
     % Load centralized configuration
     config = config_simulation();
 
@@ -112,16 +114,20 @@ function run_closed_loop_test()
         fprintf('SKIPPING STEP 6: DeePC Controller Simulation\n')
     end
 
-    %% Step 7: Comparison
-    fprintf('STEP 7: Controller Comparison\n');
-    diary('results/CLI_output/step7_comparison.txt');
-    compare_controllers(config);
-    diary off;
-    fprintf('✓ Complete. Log: results/CLI_output/step7_comparison.txt\n\n');
+    %% Step 7: Closed Loop Comparison
+    if config.run_closed_loop_comparison
+        fprintf('STEP 7: Controller Comparison\n');
+        diary('results/CLI_output/step7_comparison.txt');
+        compare_controllers(config);
+        diary off;
+        fprintf('✓ Complete. Log: results/CLI_output/step7_comparison.txt\n\n');
+    else
+        fprintf('SKIPPING STEP 7: Controller Comparison\n ')
+    end
 
-    %% Final Summary
+    %% Closed loop Summary
     fprintf('\n========================================\n');
-    fprintf('  Simulation Complete!\n');
+    fprintf('  Closed Loop Simulation Complete!\n');
     fprintf('========================================\n');
     fprintf('End Time: %s\n', char(datetime('now')));
     fprintf('\nResults saved in:\n');
@@ -129,5 +135,40 @@ function run_closed_loop_test()
     fprintf('  - results/config/ (configuration used)\n');
     fprintf('  - results/CLI_output/ (command line logs)\n');
     fprintf('  - results/*.png (plots)\n');
+    fprintf('========================================\n');
+
+    %% Step 8: Offline Prediction (all predictors)
+    if config.run_predictive
+        fprintf('STEP 8: Offline Prediction Runs\n');
+        diary('results/CLI_output/offline_step8_prediction_runs.txt');
+        run_offline_prediction_all_predictors(config);
+        diary off;
+        fprintf('✓ Complete. Log: results/CLI_output/offline_step8_prediction_runs.txt\n\n');
+        clc;
+    else
+        fprintf('SKIPPING STEP 8: Offline Prediction Runs\n')
+    end 
+
+    %% Step 9: PredictiveComparison
+    if config.run_predictive_comparison
+        fprintf('STEP 9: Predictor Comparison\n');
+        diary('results/CLI_output/offline_step4_comparison.txt');
+        compare_predictors(config);
+        diary off;
+        fprintf('✓ Complete. Log: results/CLI_output/offline_step4_comparison.txt\n\n');
+    else
+        fprintf('Skipping STEP 9: Predictor Comparison\n' )
+    end 
+    
+    %% Predictions Summary
+    fprintf('\n========================================\n');
+    fprintf('  Offline Prediction Pipeline Complete!\n');
+    fprintf('========================================\n');
+    fprintf('End Time: %s\n', char(datetime('now')));
+    fprintf('\nResults saved in:\n');
+    fprintf('  - results/OfflinePred_all_predictors.mat\n');
+    fprintf('  - results/predictor_comparison.png\n');
+    fprintf('  - results/predictor_error_distributions.png\n');
+    fprintf('  - results/CLI_output/*offline*.txt\n');
     fprintf('========================================\n');
 end

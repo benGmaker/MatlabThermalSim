@@ -22,7 +22,7 @@ function MPC_results = run_closed_loop_mpc(config)
     MPC_results.IAE = results.metrics.IAE;
     MPC_results.control_effort = results.metrics.control_effort;
 
-    MPC_results.params = struct('P', config.MPC.P, 'M', config.MPC.M, 'Q', config.MPC.Q_weight, 'R', config.MPC.R_weight);
+    MPC_results.params = struct('P', config.predictive.P, 'M', config.predictive.M, 'Q', config.predictive.Q_weight, 'R', config.predictive.R_weight);
 
     % keep same as original MPC_controller.m
     tmp = ctrl_init();

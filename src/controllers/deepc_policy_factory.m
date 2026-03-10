@@ -6,11 +6,13 @@ function [ctrl_step, ctrl_init, meta] = deepc_policy_factory(config)
         config = config_simulation();
     end
 
-    load('results/multisine_response_data.mat', 'multisine_data');
+    
+    load(config.predictive.data_source, 'step_data'); % hard coded needs long term solution
 
-    u_data_abs = multisine_data.Q(:);
-    y_data_abs = multisine_data.T(:);
-    dt = multisine_data.params.dt;
+
+    u_data_abs = step_data.Q(:);
+    y_data_abs = step_data.T(:);
+    dt = step_data.params.dt;
 
     % Center data (DeePC in deviation variables)
     u_mean = mean(u_data_abs);

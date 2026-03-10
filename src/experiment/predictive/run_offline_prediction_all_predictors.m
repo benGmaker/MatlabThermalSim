@@ -7,9 +7,10 @@ function AllPred_results = run_offline_prediction_all_predictors(config)
 
     predictors = {
         struct('name','MPC_sys_ss',   'factory', @mpc_offline_predictor_factory)
+        struct('name','SPC_n4sid',    'factory', @spc_offline_predictor_factory)
         struct('name','DMC_step',     'factory', @dmc_offline_predictor_factory)
         struct('name','DeePC_hankel', 'factory', @deepc_offline_predictor_factory)
-        struct('name','SPC_n4sid',    'factory', @spc_offline_predictor_factory)
+        
     };
 
     AllPred_results = struct();

@@ -9,8 +9,8 @@ function system_identification(config)
     close all;
     
     % Create results directory if it doesn't exist
-    if ~exist('results', 'dir')
-        mkdir('results');
+    if ~exist('results/data', 'dir')
+        mkdir('results/data');
     end
     
     fprintf('========================================\n');
@@ -18,7 +18,7 @@ function system_identification(config)
     fprintf('========================================\n\n');
     
     %% ========== PARAMETERS FROM CONFIG ==========
-    dataset_choice = config.system_id.dataset_choice;
+    dataset_choice = config.dataset_choice;
     n_poles = config.system_id.n_poles;
     n_zeros = config.system_id.n_zeros;
     validation_fraction = config.system_id.validation_fraction;
@@ -31,16 +31,13 @@ function system_identification(config)
     
     %% ========== LOAD DATA ==========
     fprintf('Loading %s response data...\n', dataset_choice);
-    
+    data = load(config.predictive.data_source);
     switch dataset_choice
         case 'step'
-            data = load('results/step_response_data.mat');
             exp_data = data.step_data;
         case 'impulse'
-            data = load('results/impulse_response_data.mat');
             exp_data = data.impulse_data;
         case 'multisine'
-            data = load('results/multisine_response_data.mat');
             exp_data = data.multisine_data;
         otherwise
             error('Unknown dataset choice: %s', dataset_choice);
@@ -116,8 +113,8 @@ function system_identification(config)
     identified_models.dataset_used = dataset_choice;
     identified_models.config = config;
     
-    save('results/identified_models.mat', 'identified_models');
-    fprintf('\nSaved: results/identified_models.mat\n');
+    save('results/data/identified_models.mat', 'identified_models');
+    fprintf('\nSaved: results/data/identified_models.mat\n');
     
     %% ========== PLOTTING ==========
     fprintf('Generating plots...\n');

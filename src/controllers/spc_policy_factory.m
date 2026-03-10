@@ -5,11 +5,12 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
         config = config_simulation();
     end
 
-    load('results/multisine_response_data.mat', 'multisine_data');
+     
+    load(config.predictive.data_source, 'step_data'); % hard coded needs long term solution
 
-    u_data = multisine_data.Q(:);
-    y_data = multisine_data.T(:);
-    dt = multisine_data.params.dt;
+    u_data = step_data.Q(:);
+    y_data = step_data.T(:);
+    dt = step_data.params.dt;
 
     u_mean = mean(u_data);
     y_mean = mean(y_data);
@@ -32,10 +33,11 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
     end
     sys_ss = ss(sys_id);
 
-    P = config.SPC.P;
-    M = config.SPC.M;
-    Qw = config.SPC.Q_weight;
-    Rw = config.SPC.R_weight;
+    % shared config 
+    P = config.predictive.P;
+    M = config.predictive.M;
+    Qw = config.predictive.Q_weight;
+    Rw = config.predictive.R_weight;
 
     umin_dev = config.constraints.u_min - u_mean;
     umax_dev = config.constraints.u_max - u_mean;

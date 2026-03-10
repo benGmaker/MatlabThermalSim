@@ -28,7 +28,7 @@ function AllPred_results = run_offline_prediction_all_predictors(config)
         item.results = res;
         item.meta = meta;
 
-        AllPred_results.items = [AllPred_results.items; item]; %#ok<AGROW>
+        AllPred_results.items = [AllPred_results.items; item];
 
         fprintf('RMSE=%.4g  MAE=%.4g  fit=%.2f%%\n', ...
             res.metrics.RMSE, res.metrics.MAE, res.metrics.fit_percent);

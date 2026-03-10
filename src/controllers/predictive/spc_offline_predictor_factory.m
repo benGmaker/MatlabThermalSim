@@ -5,11 +5,11 @@ function [predictor_step, predictor_init, meta] = spc_offline_predictor_factory(
 
     if nargin < 1, config = config_simulation(); end
 
-    load('results/multisine_response_data.mat', 'multisine_data');
+    load(config.predictive.data_source, 'step_data');
 
-    u_abs = multisine_data.Q(:);
-    y_abs = multisine_data.T(:);
-    dt = multisine_data.params.dt;
+    u_abs = step_data.Q(:);
+    y_abs = step_data.T(:);
+    dt = step_data.params.dt;
 
     % center like spc_policy_factory
     u_mean = mean(u_abs);

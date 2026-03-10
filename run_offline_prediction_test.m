@@ -16,9 +16,18 @@ function run_offline_prediction_test()
     addpath(genpath('experiments'));
 
     % Create results directories
-    if ~exist('results', 'dir'), mkdir('results'); end
-    if ~exist('results/config', 'dir'), mkdir('results/config'); end
-    if ~exist('results/CLI_output', 'dir'), mkdir('results/CLI_output'); end
+    if ~exist('results', 'dir')
+        mkdir('results');
+    end
+    if ~exist('results/config', 'dir')
+        mkdir('results/config');
+    end
+    if ~exist('results/CLI_output', 'dir')
+        mkdir('results/CLI_output');
+    end
+    if ~exist('results/data', 'dir')
+        mkdir('results/data');
+    end
 
     % Load centralized configuration
     config = config_simulation();
@@ -38,46 +47,28 @@ function run_offline_prediction_test()
     fprintf('========================================\n\n');
 
     %% Step 1: Data Collection
-    fprintf('STEP 1: Data Collection\n');
-    diary('results/CLI_output/offline_step1_data_collection.txt');
-    fprintf('Running experiments...\n');
-    experiment_data_collection(config);
-    diary off;
-    fprintf('✓ Complete. Log: results/CLI_output/offline_step1_data_collection.txt\n\n');
-    clc;
+    if config.run_collect_data
+        fprintf('STEP 1: Data Collection\n');
+        diary('results/CLI_output/step1_data_collection.txt');
+        fprintf('Running experiments...\n');
+        experiment_data_collection(config);
+        diary off;
+        fprintf('✓ Complete. Log: results/CLI_output/step1_data_collection.txt\n\n');
+        clc;
+    else
+        fprintf('SKIPPING STEP 1: Data Collection\n')
+    end
 
     %% Step 2: System Identification
-    fprintf('STEP 2: System Identification\n');
-    diary('results/CLI_output/offline_step2_system_identification.txt');
-    system_identification(config);
-    diary off;
-    fprintf('✓ Complete. Log: results/CLI_output/offline_step2_system_identification.txt\n\n');
-    clc;
+    if config.run_system_id
+        fprintf('STEP 2: System Identification\n');
+        diary('results/CLI_output/step2_system_identification.txt');
+        system_identification(config);
+        diary off;
+        fprintf('✓ Complete. Log: results/CLI_output/step2_system_identification.txt\n\n');
+        clc;
+    else
+        fprintf('SKIPPING STEP 2: System Identifcation\n')
+    end
 
-    %% Step 3: Offline Prediction (all predictors)
-    fprintf('STEP 3: Offline Prediction Runs\n');
-    diary('results/CLI_output/offline_step3_prediction_runs.txt');
-    run_offline_prediction_all_predictors(config);
-    diary off;
-    fprintf('✓ Complete. Log: results/CLI_output/offline_step3_prediction_runs.txt\n\n');
-    clc;
 
-    %% Step 4: Comparison
-    fprintf('STEP 4: Predictor Comparison\n');
-    diary('results/CLI_output/offline_step4_comparison.txt');
-    compare_predictors(config);
-    diary off;
-    fprintf('✓ Complete. Log: results/CLI_output/offline_step4_comparison.txt\n\n');
-
-    %% Final Summary
-    fprintf('\n========================================\n');
-    fprintf('  Offline Prediction Pipeline Complete!\n');
-    fprintf('========================================\n');
-    fprintf('End Time: %s\n', char(datetime('now')));
-    fprintf('\nResults saved in:\n');
-    fprintf('  - results/OfflinePred_all_predictors.mat\n');
-    fprintf('  - results/predictor_comparison.png\n');
-    fprintf('  - results/predictor_error_distributions.png\n');
-    fprintf('  - results/CLI_output/*offline*.txt\n');
-    fprintf('========================================\n');
-end

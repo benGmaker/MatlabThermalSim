@@ -85,8 +85,8 @@ function experiment_data_collection(config)
                        'steady_state_gain', steady_state_gain, ...
                        'noise_stats', noise_stats_step, ...
                        'config', config);
-    save('results/step_response_data.mat', 'step_data');
-    fprintf('  Saved: results/step_response_data.mat\n\n');
+    save('results/data/step_response_data.mat', 'step_data');
+    fprintf('  Saved: results/data/step_response_data.mat\n\n');
     
     %% ========== EXPERIMENT 2: IMPULSE RESPONSE ==========
     fprintf('Running Impulse Response Experiment...\n');
@@ -115,8 +115,8 @@ function experiment_data_collection(config)
                           'impulse_delay', impulse_delay, ...
                           'noise_stats', noise_stats_impulse, ...
                           'config', config);
-    save('results/impulse_response_data.mat', 'impulse_data');
-    fprintf('  Saved: results/impulse_response_data.mat\n\n');
+    save('results/data/impulse_response_data.mat', 'impulse_data');
+    fprintf('  Saved: results/data/impulse_response_data.mat\n\n');
     
     %% ========== EXPERIMENT 3: MULTISINE RESPONSE ==========
     fprintf('Running Multisine Response Experiment...\n');
@@ -157,8 +157,8 @@ function experiment_data_collection(config)
                             'amplitude', multisine_amplitude, 'offset', multisine_offset, ...
                             'noise_stats', noise_stats_multisine, ...
                             'config', config);
-    save('results/multisine_response_data.mat', 'multisine_data');
-    fprintf('  Saved: results/multisine_response_data.mat\n\n');
+    save('results/data/multisine_response_data.mat', 'multisine_data');
+    fprintf('  Saved: results/data/multisine_response_data.mat\n\n');
     
     %% ========== EXPERIMENT 4: DOUBLET TEST ==========
     fprintf('Running Doublet Test Experiment...\n');
@@ -189,13 +189,13 @@ function experiment_data_collection(config)
                           'doublet_delay', doublet_delay, ...
                           'noise_stats', noise_stats_doublet, ...
                           'config', config);
-    save('results/doublet_response_data.mat', 'doublet_data');
-    fprintf('  Saved: results/doublet_response_data.mat\n\n');
+    save('results/data/doublet_response_data.mat', 'doublet_data');
+    fprintf('  Saved: results/data/doublet_response_data.mat\n\n');
     
     %% ========== PLOTTING ==========
     fprintf('Generating plots...\n');
     
-    figure('Position', config.plotting.figure_size);
+    fig = figure('Position', config.plotting.figure_size);
     
     % Step response
     subplot(4,3,1);
@@ -285,8 +285,8 @@ function experiment_data_collection(config)
     else
         sgtitle('Data Collection Experiments (No Noise)');
     end
-    saveas(gcf, 'results/data_collection_plots.png');
-    fprintf('  Saved: results/data_collection_plots.png\n');
+    saveas(fig, 'results/data/data_collection_plots.png');
+    fprintf('  Saved: results/data/data_collection_plots.png\n');
     
     %% ========== STEP RESPONSE ANALYSIS ==========
     fprintf('\nStep Response Analysis for DMC:\n');

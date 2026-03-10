@@ -5,7 +5,7 @@ function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
         config = config_simulation();
     end
 
-    data = load('results/identified_models.mat', 'identified_models');
+    data = load('results/data/identified_models.mat', 'identified_models');
     identified_models = data.identified_models;
 
     sys = identified_models.sys_tf;
@@ -20,10 +20,11 @@ function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
     end
     sys_ss = ss(sys_d);
 
-    P = config.MPC.P;
-    M = config.MPC.M;
-    Qw = config.MPC.Q_weight;
-    Rw = config.MPC.R_weight;
+    % shared config 
+    P = config.predictive.P;
+    M = config.predictive.M;
+    Qw = config.predictive.Q_weight;
+    Rw = config.predictive.R_weight;
 
     umin_dev = config.constraints.u_min - u_mean;
     umax_dev = config.constraints.u_max - u_mean;

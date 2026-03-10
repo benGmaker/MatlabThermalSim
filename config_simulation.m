@@ -10,10 +10,13 @@ function config = config_simulation()
     %%  ========== RUN CONFIGURATION ==========
     config.run_collect_data = false;
     config.run_system_id = false;
-    config.run_MPC = true;
-    config.run_SPC = true;
-    config.run_DMC = true;
-    config.run_DeePC = true;
+    config.run_MPC = false;
+    config.run_SPC = false;
+    config.run_DMC = false;
+    config.run_DeePC = false;
+    config.run_closed_loop_comparison = false;
+    config.run_predictive = true;
+    config.run_predictive_comparison = true;
 
     %% ========== SIMULATION PARAMETERS ==========
     config.simulation.t_sim = 600;          % Simulation time [s]
@@ -29,45 +32,26 @@ function config = config_simulation()
     config.constraints.u_max = 100;         % Max heater power [%]
     config.constraints.du_max = 50;         % Max rate of change [%/sample]
     
+    %% ========== GLOBAL PREDICTIVE CONTROL PARAMETERS ==========
+    config.predictive.P = 10; % Prediction horizon [samples]
+    config.predictive.M = 10;                      % Control horizon [samples]
+    config.predictive.Q_weight = 1;                % Output tracking weight
+    config.predictive.R_weight = 0.1;            % Input change penalty
+    config.predictive.data_source = 'results/data/step_response_data.mat'; % Source data 
+    config.dataset_choice = 'step'; %legacy for system ID
+
     %% ========== MPC PARAMETERS ==========
-    config.MPC.P = 10;                      % Prediction horizon [samples]
-    config.MPC.M = 10;                      % Control horizon [samples]
-    config.MPC.Q_weight = 1;                % Output tracking weight
-    config.MPC.R_weight = 0.001;            % Input change penalty
     config.enable_integrator = false;       % Offset free MPC
 
     %% ========== SPC (Subspace Predictive Control) PARAMETERS ==========
-    % SPC flow:
-    %   1) Identify a state-space model via subspace ID (n4sid) from measured IO data
-    %   2) Build a standard linear MPC using that identified ss model
-    %
-    % Data source: uses the same dataset saved by experiment_data_collection:
-    %   results/multisine_response_data.mat (multisine_data.Q, multisine_data.T)
     config.plotting.colors.SPC = [0.49, 0.18, 0.56]; % purple-ish
     config.SPC.ident.method = 'n4sid';      % 'n4sid' (recommended)
     config.SPC.ident.nx = 2;                % identified state dimension (tune 2..6)
     config.SPC.ident.focus = 'simulation';  % 'simulation' or 'prediction'
     config.SPC.ident.form = 'canonical';    % passed to ssestOptions/n4sidOptions if used
-    config.SPC.ident.data_source = 'multisine'; % 'multisine' only (for now)
-
-    % Horizons / weights (similar meaning to MPC)
-    config.SPC.P = 30;                      % prediction horizon [samples]
-    config.SPC.M = 10;                      % control horizon [samples]
-    config.SPC.Q_weight = 1;                % output tracking weight
-    config.SPC.R_weight = 0.01;             % input move penalty
-
-    % Optional: estimation/observer noise tuning (if you later add Kalman filter)
-    config.SPC.estimator.enable = false;
-    config.SPC.estimator.Qn = 1e-4;         % process noise covariance scalar
-    config.SPC.estimator.Rn = 1e-2;         % measurement noise covariance scalar
     
     %% ========== DMC PARAMETERS ==========
-    config.DMC.P = 20;                      % Prediction horizon [samples]
-    config.DMC.M = 10;                      % Control horizon [samples]
     config.DMC.N = 100;                     % Model horizon (step response length) [samples]
-    config.DMC.Q_weight = 1;                % Output tracking weight
-    config.DMC.R_weight = 0.01;             % Input change penalty
-    config.DMC.step_response_source = 'measured';  % 'measured', 'ss_model', or 'tf_model'
     
     %% ========== DeePC PARAMETERS ==========
     config.DeePC.T_ini = 5;                 % Past horizon [samples]
@@ -105,7 +89,6 @@ function config = config_simulation()
     config.data_collection.doublet_delay = 50;      % Initial delay [s]
     
     %% ========== SYSTEM IDENTIFICATION PARAMETERS ==========
-    config.system_id.dataset_choice = 'multisine';  % 'step', 'impulse', or 'multisine'
     config.system_id.n_poles = 2;                   % Number of poles
     config.system_id.n_zeros = 1;                   % Number of zeros
     config.system_id.validation_fraction = 0.3;     % Validation data fraction
@@ -120,7 +103,7 @@ function config = config_simulation()
     config.thermal_model.alpha = 0.01;      % Heater efficiency
     config.thermal_model.eps = 0.9;         % Radiation coefficient
     config.thermal_model.sigma = 5.67e-8;   % Stefan-Boltzmann constant [W/m^2-K^4]
-    config.thermal_model.model_type = 'nonlinear';  % 'linear' or 'nonlinear'
+    config.thermal_model.model_type = 'linear';  % 'linear' or 'nonlinear'
     
     %% ========== PLOTTING PARAMETERS ==========
     config.plotting.colors.MPC = [0.2, 0.7, 0.2];      % Lighter Green

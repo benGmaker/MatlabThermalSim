@@ -4,7 +4,7 @@ function DMC_results = run_closed_loop_dmc(config)
     close all;
     if ~exist('results','dir'), mkdir('results'); end
 
-    config.ref_preview_horizon = config.DMC.P;
+    config.ref_preview_horizon = config.predictive.P;
     config.controller_name = 'DMC';
 
     [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config);
@@ -24,10 +24,9 @@ function DMC_results = run_closed_loop_dmc(config)
     DMC_results.IAE = results.metrics.IAE;
     DMC_results.control_effort = results.metrics.control_effort;
 
-    DMC_results.params = struct('P', config.DMC.P, 'M', config.DMC.M, 'N', config.DMC.N, ...
-        'Q', config.DMC.Q_weight, 'R', config.DMC.R_weight);
-
-    DMC_results.step_response_source = config.DMC.step_response_source;
+    DMC_results.params = struct('P', config.predictive.P, 'M', config.predictive.M, 'N', config.DMC.N, ...
+        'Q', config.predictive.Q_weight, 'R', config.predictive.R_weight);
+   
     DMC_results.step_response = meta.S;
     DMC_results.config = config;
 

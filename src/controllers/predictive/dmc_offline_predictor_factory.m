@@ -8,27 +8,19 @@ function [predictor_step, predictor_init, meta] = dmc_offline_predictor_factory(
 
     if nargin < 1, config = config_simulation(); end
 
-    % Load means + dt + models
-    data = load('results/identified_models.mat', 'identified_models');
-    identified_models = data.identified_models;
+    % todo remove upgrade model u_mean y_mean dt to the one of the step
+    % response
+    % Load model once
+    load('results/data/identified_models.mat', 'identified_models');
 
     dt = identified_models.dt;
     u_mean = identified_models.u_mean;
     y_mean = identified_models.y_mean;
 
-    N = config.DMC.N;
 
-    % Get step response S(1..N)
-    switch config.DMC.step_response_source
-        case 'measured'
-            S = get_measured_step_response_local(N);
-        case 'ss_model'
-            S = get_model_step_response_local(identified_models.sys_ss, N, dt);
-        case 'tf_model'
-            S = get_model_step_response_local(identified_models.sys_tf, N, dt);
-        otherwise
-            error('Unknown step response source: %s', config.DMC.step_response_source);
-    end
+    N = config.DMC.N;
+    S = get_measured_step_response_local(N);
+
     S = S(:);
 
     predictor_init = @init;
@@ -40,7 +32,6 @@ function [predictor_step, predictor_init, meta] = dmc_offline_predictor_factory(
     meta.y_mean = y_mean;
     meta.S = S;
     meta.N = N;
-    meta.step_response_source = config.DMC.step_response_source;
 
     function pred = init()
         pred = struct();
@@ -87,7 +78,7 @@ end
 
 % ---- Local helpers (copy of your existing ones, trimmed)
 function S = get_measured_step_response_local(N)
-    data = load('results/step_response_data.mat');
+    data = load('results/data/step_response_data.mat');
     step_data = data.step_data;
 
     if isfield(step_data, 'step_idx')

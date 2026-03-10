@@ -2,7 +2,7 @@ function [predictor_step, predictor_init, meta] = identified_ss_offline_predicto
 %IDENTIFIED_SS_OFFLINE_PREDICTOR_FACTORY
 % One-step-ahead predictor y_hat(k+1) from measured (y(k), u(k)) using identified_models.sys_ss.
 
-    data = load('results/identified_models.mat', 'identified_models');
+    data = load('results/data/identified_models.mat', 'identified_models');
     identified_models = data.identified_models;
 
     if ~isfield(identified_models, 'sys_ss') || isempty(identified_models.sys_ss)
