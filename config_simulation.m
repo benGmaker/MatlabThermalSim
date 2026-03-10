@@ -7,6 +7,14 @@ function config = config_simulation()
 %   
 % The configuration is automatically saved with results for traceability
 
+    %%  ========== RUN CONFIGURATION ==========
+    config.run_collect_data = false;
+    config.run_system_id = false;
+    config.run_MPC = true;
+    config.run_SPC = true;
+    config.run_DMC = true;
+    config.run_DeePC = true;
+
     %% ========== SIMULATION PARAMETERS ==========
     config.simulation.t_sim = 600;          % Simulation time [s]
     config.simulation.dt = 1;               % Sampling time [s]
@@ -22,10 +30,11 @@ function config = config_simulation()
     config.constraints.du_max = 50;         % Max rate of change [%/sample]
     
     %% ========== MPC PARAMETERS ==========
-    config.MPC.P = 30;                      % Prediction horizon [samples]
+    config.MPC.P = 10;                      % Prediction horizon [samples]
     config.MPC.M = 10;                      % Control horizon [samples]
     config.MPC.Q_weight = 1;                % Output tracking weight
-    config.MPC.R_weight = 0.01;             % Input change penalty
+    config.MPC.R_weight = 0.001;            % Input change penalty
+    config.enable_integrator = false;       % Offset free MPC
 
     %% ========== SPC (Subspace Predictive Control) PARAMETERS ==========
     % SPC flow:

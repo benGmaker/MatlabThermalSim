@@ -26,7 +26,6 @@ function MPC_results = run_closed_loop_mpc(config)
 
     % keep same as original MPC_controller.m
     tmp = ctrl_init();
-    MPC_results.mpcobj = tmp.mpcobj;
     MPC_results.config = config;
 
     save('results/MPC_results.mat', 'MPC_results');

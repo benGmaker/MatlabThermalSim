@@ -1,5 +1,5 @@
 function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
-%MPC_POLICY_FACTORY Build MPC controller as a step-wise policy.
+%MPC_POLICY_FACTORY Quadprog-based MPC policy.
 
     if nargin < 1
         config = config_simulation();
@@ -13,58 +13,86 @@ function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
     u_mean = identified_models.u_mean;
     y_mean = identified_models.y_mean;
 
-    % Convert to discrete-time if needed
     if ~isdt(sys)
         sys_d = c2d(sys, dt, 'zoh');
     else
         sys_d = sys;
     end
+    sys_ss = ss(sys_d);
 
-    % Build MPC object
-    mpcobj = mpc(sys_d, dt);
-    mpcobj.PredictionHorizon = config.MPC.P;
-    mpcobj.ControlHorizon = config.MPC.M;
+    P = config.MPC.P;
+    M = config.MPC.M;
+    Qw = config.MPC.Q_weight;
+    Rw = config.MPC.R_weight;
 
-    mpcobj.Weights.OutputVariables = config.MPC.Q_weight;
-    mpcobj.Weights.ManipulatedVariablesRate = config.MPC.R_weight;
-    mpcobj.Weights.ManipulatedVariables = 0;
+    umin_dev = config.constraints.u_min - u_mean;
+    umax_dev = config.constraints.u_max - u_mean;
+    du_max = config.constraints.du_max;
 
-    mpcobj.ManipulatedVariables.Min = config.constraints.u_min - u_mean;
-    mpcobj.ManipulatedVariables.Max = config.constraints.u_max - u_mean;
-    mpcobj.ManipulatedVariables.RateMin = -config.constraints.du_max;
-    mpcobj.ManipulatedVariables.RateMax = config.constraints.du_max;
+    qp_opts = struct('enable_integrator', config.enable_integrator);
+    qp = qp_mpc_siso(sys_ss, P, M, Qw, Rw, qp_opts);
 
-    mpcobj.OutputVariables.Min = -Inf;
-    mpcobj.OutputVariables.Max = Inf;
-
-    % ---- meta (optional)
     meta = struct();
     meta.dt = dt;
     meta.u_mean = u_mean;
     meta.y_mean = y_mean;
     meta.sys_d = sys_d;
+    meta.sys_ss = sys_ss;
+    meta.P = P; meta.M = M;
+    meta.Qw = Qw; meta.Rw = Rw;
+    meta.enable_integrator = qp.enable_integrator;
 
-    % ---- IMPORTANT: do NOT call mpcstate inside an anonymous function
     ctrl_init = @init_state;
     ctrl_step = @step;
 
     function ctrl = init_state()
         ctrl = struct();
-        ctrl.mpcobj = mpcobj;
-
-        % This must run in a normal function workspace (not anonymous)
-        ctrl.xmpc = mpcstate(mpcobj);
-
+        ctrl.dt = dt;
         ctrl.u_mean = u_mean;
         ctrl.y_mean = y_mean;
-        ctrl.dt = dt;
+
+        ctrl.sys_ss = sys_ss;
+        ctrl.qp = qp;
+
+        % Augmented state size depends on qp integrator option
+        ctrl.x = zeros(qp.nx, 1);
+
+        % IMPORTANT: match run_closed_loop_generic initial u(1)=0 (absolute)
+        u0_abs = 0;
+        ctrl.u_prev_dev = u0_abs - u_mean;
+
+        ctrl.umin_dev = umin_dev;
+        ctrl.umax_dev = umax_dev;
+        ctrl.du_max = du_max;
     end
 
-    function [u_next_abs, ctrl] = step(k, y_k_abs, r_traj_abs, ctrl, config) %#ok<INUSD>
+    function [u_next_abs, ctrl] = step(k, y_k_abs, r_traj_abs, ctrl, config) 
+        % Deviation signals
         y_dev = y_k_abs - ctrl.y_mean;
-        r_dev = r_traj_abs(1) - ctrl.y_mean;
+        r_dev = r_traj_abs(:) - ctrl.y_mean;
 
-        u_dev = mpcmove(ctrl.mpcobj, ctrl.xmpc, y_dev, r_dev);
-        u_next_abs = u_dev + ctrl.u_mean;
+        % ---- Measurement update for integrator state (if enabled)
+        % Our augmentation sets last state as an integrator-like term.
+        % We update it using actual measured y and reference (first element).
+        if ctrl.qp.enable_integrator
+            % x = [xplant; xi], update xi <- xi + (r - y)
+            xi_idx = numel(ctrl.x);
+            ctrl.x(xi_idx) = ctrl.x(xi_idx) + (r_dev(1) - y_dev);
+        end
+
+        % ---- Solve QP
+        [du0, info] = ctrl.qp.solve(ctrl.x, r_dev, ctrl.u_prev_dev, ctrl.umin_dev, ctrl.umax_dev, ctrl.du_max);
+
+        u_next_dev = ctrl.u_prev_dev + du0;
+        u_next_dev = max(ctrl.umin_dev, min(ctrl.umax_dev, u_next_dev));
+        ctrl.u_prev_dev = u_next_dev;
+
+        % ---- Time update model state (using augmented model)
+        A = ctrl.qp.A; B = ctrl.qp.B;
+        ctrl.x = A*ctrl.x + B*u_next_dev;
+
+        % Convert to absolute
+        u_next_abs = u_next_dev + ctrl.u_mean;
+        u_next_abs = max(config.constraints.u_min, min(config.constraints.u_max, u_next_abs));
     end
 end
