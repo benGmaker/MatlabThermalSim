@@ -1,14 +1,19 @@
 function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
-%SPC_POLICY_FACTORY Subspace ID (N4SID) + nominal MPC policy (matches report MPC formulation).
+%SPC_POLICY_FACTORY SPC (data-driven lifted predictor) + nominal MPC QP.
 %
-% Note: This is the "parametric SPC route" (identify A,B,C,D via subspace method, then do MPC).
+% This implementation follows the report SPC narrative:
+%   - Build Hankel matrices Up,Yp,Uf,Yf
+%   - Oblique projection O_i = Yf /_{Uf} Wp
+%   - SVD -> latent state sequence Xp
+%   - Fit lifted predictor Y = F*x + Phi*U directly from data
+%   - Solve the same condensed MPC QP, but with (F,Phi) from data (no A,B,C,D)
 
     if nargin < 1
         config = config_simulation();
     end
 
     ds = load_predictive_data(config);
-    
+
     u_data = ds.u_data;
     y_data = ds.T;
     dt = ds.dt;
@@ -18,23 +23,7 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
     u_id = u_data - u_mean;
     y_id = y_data - y_mean;
 
-    z = iddata(y_id, u_id, dt);
-    nx = config.SPC.ident.nx;
-
-    switch lower(config.SPC.ident.method)
-        case 'n4sid'
-            opt = n4sidOptions('Focus', config.SPC.ident.focus);
-            sys_id = n4sid(z, nx, opt);
-        otherwise
-            error('Unsupported config.SPC.ident.method: %s (use ''n4sid'')', config.SPC.ident.method);
-    end
-
-    if ~isdt(sys_id)
-        sys_id = c2d(sys_id, dt, 'zoh');
-    end
-    sys_ss = ss(sys_id);
-
-    % shared config
+    % Shared config
     P  = config.predictive.P;
     Qw = config.predictive.Q_weight;
     Rw = config.predictive.R_weight;
@@ -52,18 +41,33 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
         enable_y_constraints = false;
     end
 
+    % --- SPC identification hyperparameters ---
+    nx = config.SPC.ident.nx;
+    if isfield(config.SPC, 'i')
+        i = config.SPC.i;
+    else
+        i = max(2*nx, P); % safe-ish default; must satisfy i >= P
+    end
+
+    % Fit SPC lifted predictor directly from data
+    spc = spc_fit_lifted_predictor_siso(u_id, y_id, i, nx, P);
+
+    % Build QP using lifted predictor
     qp_opts = struct('enable_y_constraints', enable_y_constraints);
-    qp = qp_mpc_siso(sys_ss, P, Qw, Rw, qp_opts);
+    qp = qp_spc_lifted_siso(spc.F, spc.Phi, P, Qw, Rw, qp_opts);
 
     meta = struct();
     meta.dt = dt;
     meta.u_mean = u_mean;
     meta.y_mean = y_mean;
-    meta.model = sys_ss;
     meta.nx = nx;
+    meta.i = i;
     meta.P = P;
     meta.Qw = Qw; meta.Rw = Rw;
     meta.enable_y_constraints = enable_y_constraints;
+
+    % Keep for debugging/analysis
+    meta.spc = spc;
 
     ctrl_init = @init_state;
     ctrl_step = @step;
@@ -74,51 +78,57 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
         ctrl.u_mean = u_mean;
         ctrl.y_mean = y_mean;
 
-        ctrl.sys_ss = sys_ss;
         ctrl.qp = qp;
-
-        ctrl.x = zeros(qp.nx, 1);
+        ctrl.spc = spc;
 
         ctrl.umin_dev = umin_dev;
         ctrl.umax_dev = umax_dev;
         ctrl.ymin_dev = ymin_dev;
         ctrl.ymax_dev = ymax_dev;
+
         ctrl.u_prev_dev = 0;
-        
-        A = qp.A; C = qp.C;
-        % For SISO: place for (A',C') then transpose gain back
-        try
-            ctrl.L = place(A', C', desired).';
-        catch
-            % Fallback if place fails (e.g., non-observable numeric issues)
-            ctrl.L = zeros(size(A,1), size(C,1));
-        end
-        % --------------------------------------
+        % history buffers for past window (length i)
+        ctrl.i = i;
+        ctrl.u_hist = zeros(i,1);
+        ctrl.y_hist = zeros(i,1);
+
+        % latent state
+        ctrl.x = zeros(nx,1);
     end
 
-    function [u_next_abs, ctrl] = step(k, y_k_abs, r_traj_abs, ctrl, config)
-        % Deviation signals
+    function [u_next_abs, ctrl] = step(~, y_k_abs, r_traj_abs, ctrl, config)
+        % deviation signals
         y_dev = y_k_abs - ctrl.y_mean;
         r_dev = r_traj_abs(:) - ctrl.y_mean;
 
-        % ---- Observer update: predict then correct ----
-        x_pred = ctrl.qp.A*ctrl.x + ctrl.qp.B*ctrl.u_prev_dev;
-        y_pred = ctrl.qp.C*x_pred + ctrl.qp.D*ctrl.u_prev_dev;
-        ctrl.x = x_pred + ctrl.L*(y_dev - y_pred);
+        % update history (shift up, append current)
+        ctrl.u_hist = [ctrl.u_hist(2:end); ctrl.u_prev_dev];
+        ctrl.y_hist = [ctrl.y_hist(2:end); y_dev];
 
-         % Solve nominal MPC
-        [u0_dev, info] = ctrl.qp.solve(ctrl.x, r_dev, ctrl.umin_dev, ctrl.umax_dev, ctrl.ymin_dev, ctrl.ymax_dev); %#ok<NASGU>
+        % estimate latent state from past window: x = Kx * [u_past; y_past]
+        w = [ctrl.u_hist; ctrl.y_hist];
+        ctrl.x = ctrl.spc.Kx * w;
 
-        % Apply first input (deviation)
-        u_next_dev = u0_dev;
-        u_next_dev = max(ctrl.umin_dev, min(ctrl.umax_dev, u_next_dev));
+        % solve lifted QP
+        [u0_dev, info] = ctrl.qp.solve(ctrl.x, r_dev, ctrl.u_prev_dev, ...
+            ctrl.umin_dev, ctrl.umax_dev, ctrl.ymin_dev, ctrl.ymax_dev);
+        % apply first input (deviation) with saturation
+        u_next_dev = max(ctrl.umin_dev, min(ctrl.umax_dev, u0_dev));
 
-        % store previous input for next observer update
+        % store u for next history update
         ctrl.u_prev_dev = u_next_dev;
 
-        % Apply constrains
+        % back to absolute + saturate
         u_next_abs = u_next_dev + ctrl.u_mean;
         u_next_abs = max(config.constraints.u_min, min(config.constraints.u_max, u_next_abs));
+    end
+end
 
+function u = u_prev_dev_if_exists_local(ctrl)
+% helper (not used; kept if you want standalone)
+    if isfield(ctrl, 'u_prev_dev')
+        u = ctrl.u_prev_dev;
+    else
+        u = 0;
     end
 end

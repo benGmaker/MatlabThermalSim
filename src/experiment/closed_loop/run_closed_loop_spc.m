@@ -46,7 +46,6 @@ function SPC_results = run_closed_loop_spc(config)
 
     % Keep same extra fields as original SPC_controller.m
     tmp = ctrl_init();
-    SPC_results.model = meta.model;
     SPC_results.u_mean = meta.u_mean;
     SPC_results.y_mean = meta.y_mean;
     SPC_results.config = config;

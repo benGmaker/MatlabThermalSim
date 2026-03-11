@@ -9,12 +9,12 @@ function config = config_simulation()
 
     %%  ========== RUN CONFIGURATION ==========
     % Closed loop
-    config.run_collect_data = true;
-    config.run_system_id = true;
+    config.run_collect_data = false;
+    config.run_system_id = false;
     config.run_MPC = true;
     config.run_SPC = true;
     config.run_DMC = true;
-    config.run_DeePC = true;
+    config.run_DeePC = false;
     config.run_closed_loop_comparison = true;
 
     % Predictive 
@@ -33,24 +33,30 @@ function config = config_simulation()
     %% ========== CONTROL CONSTRAINTS (SHARED ACROSS ALL CONTROLLERS) ==========
     config.constraints.u_min = 0;           % Min heater power [%]
     config.constraints.u_max = 100;         % Max heater power [%]
-    config.constraints.du_max = 50;         % Max rate of change [%/sample]
+    config.constraints.du_max = 10;         % Max rate of change [%/sample]
     
     %% ========== GLOBAL PREDICTIVE CONTROL PARAMETERS ==========
     config.predictive.P = 20; % Prediction horizon [samples]
     config.predictive.M = 20;                      % Control horizon [samples]
     config.predictive.Q_weight = 100;                % Output tracking weight
     config.predictive.R_weight = 0.0001;            % Input change penalty
-    config.dataset_choice = 'doublet';  % options: step, multisine, impulse, doubleT 
+    config.dataset_choice = 'doubleT';  % options: step, multisine, impulse, doubleT 
     % DMC always uses step response data 
     %% ========== MPC PARAMETERS ==========
     config.enable_integrator = false;       % Offset free MPC
 
     %% ========== SPC (Subspace Predictive Control) PARAMETERS ==========
-    config.plotting.colors.SPC = [0.49, 0.18, 0.56]; % purple-ish
-    config.SPC.ident.method = 'n4sid';      % 'n4sid' (recommended)
-    config.SPC.ident.nx = 2;                % identified state dimension (tune 2..6)
-    config.SPC.ident.focus = 'simulation';  % 'simulation' or 'prediction'
-    config.SPC.ident.form = 'canonical';    % passed to ssestOptions/n4sidOptions if used
+    config.SPC.route = 'lifted';
+    config.SPC.ident.nx = 2;
+    config.SPC.reg.lambda = 1e-4;
+    % rate constraint per sample (you said du_max=50)
+    config.SPC.mpc.enable_du_constraints = true;
+    config.SPC.mpc.du_max = 10;
+    config.SPC.mpc.du_min = -10;
+    
+    % smoothing (penalty). Start here:
+    config.SPC.mpc.enable_du_penalty = true;
+    config.SPC.mpc.du_weight = 100;   % try 50, then 100 if still jittery
     
     %% ========== DMC PARAMETERS ==========
     

@@ -71,14 +71,6 @@ function save_config_readable(config, filename)
 
     % ============================ SPC ====================================
     fprintf(fid, '--- SPC (SUBSPACE PREDICTIVE CONTROL) PARAMETERS ---\n');
-    if isfield(config,'SPC') && isfield(config.SPC,'ident')
-        fprintf(fid, 'Identification Method:        %s\n', config.SPC.ident.method);
-        fprintf(fid, 'Identified State Dimension:   %d\n', config.SPC.ident.nx);
-        fprintf(fid, 'Identification Focus:         %s\n', config.SPC.ident.focus);
-        fprintf(fid, 'Identification Form:          %s\n', config.SPC.ident.form);
-    else
-        fprintf(fid, '(SPC.ident not present)\n');
-    end
     fprintf(fid, '\n');
 
     % ============================ DMC ====================================
