@@ -18,6 +18,7 @@ function [y_noisy, noise_stats] = add_measurement_noise(y_clean, config)
         noise_stats.noise_enabled = false;
         noise_stats.SNR_desired_dB = NaN;
         noise_stats.SNR_achieved_dB = NaN;
+        noise_stats.noise_std = NaN;
         return;
     end
     

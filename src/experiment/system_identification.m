@@ -30,18 +30,7 @@ function system_identification(config)
     fprintf('\n');
     
     %% ========== LOAD DATA ==========
-    fprintf('Loading %s response data...\n', dataset_choice);
-    data = load(config.predictive.data_source);
-    switch dataset_choice
-        case 'step'
-            exp_data = data.step_data;
-        case 'impulse'
-            exp_data = data.impulse_data;
-        case 'multisine'
-            exp_data = data.multisine_data;
-        otherwise
-            error('Unknown dataset choice: %s', dataset_choice);
-    end
+    exp_data = load_predictive_data(config);
     
     %% ========== PREPARE DATA ==========
     t = exp_data.t;

@@ -1,18 +1,15 @@
-function qp = qp_mpc_siso(sys_ss, P, M, Qw, Rw, opts)
-%QP_MPC_SISO Build and solve a condensed SISO MPC QP using quadprog.
+function qp = qp_mpc_siso(sys_ss, P, Qw, Rw, opts)
+%QP_MPC_SISO Build and solve condensed SISO MPC QP using quadprog.
 %
-% Primary decision variable: dU = [du0 ... du_{M-1}]'
-% Prediction uses move blocking after M.
+% Theory-matching nominal MPC:
+%   Decision variable: U = [u0 ... u_{P-1}]'
+%   Prediction: Y = F*xk + Phi*U
+%   Cost: sum ||y_k - r_k||_Q^2 + ||u_k||_R^2
 %
-% Optional offset-free tracking:
-%   opts.enable_integrator (default false)
-%
-% Call:
-%   qp = qp_mpc_siso(sys_ss, P, M, Qw, Rw);
-%   [du0, info] = qp.solve(xk_aug, r_dev, u_prev_dev, umin_dev, umax_dev, du_max);
+% No offset-free augmentation (per report request).
 
-    if nargin < 6, opts = struct(); end
-    if ~isfield(opts,'enable_integrator'), opts.enable_integrator = false; end
+    if nargin < 5, opts = struct(); end
+    if ~isfield(opts,'enable_y_constraints'), opts.enable_y_constraints = true; end
 
     sys_ss = ss(sys_ss);
     if ~isdt(sys_ss)
@@ -25,75 +22,46 @@ function qp = qp_mpc_siso(sys_ss, P, M, Qw, Rw, opts)
     if size(B,2) ~= 1 || size(C,1) ~= 1 || size(D,2) ~= 1
         error('qp_mpc_siso: only SISO models are supported.');
     end
-    enableI = opts.enable_integrator;
 
-    if enableI
-        % y_tilde = [C 1] * [x; xi] + D u
-        A_aug = [A zeros(size(A,1),1);
-                -C 1];
-        B_aug = [B;
-                -D];
-        C_aug = [C 1];
-        D_aug = D;
-    else
-        A_aug = A; B_aug = B; C_aug = C; D_aug = D;
-    end
-
-    nx = size(A_aug,1);
+    nx = size(A,1);
 
     qp = struct();
-    qp.A = A_aug; qp.B = B_aug; qp.C = C_aug; qp.D = D_aug;
+    qp.A = A; qp.B = B; qp.C = C; qp.D = D;
     qp.nx = nx;
-    qp.P = P; qp.M = M;
+    qp.P = P;
     qp.Qw = Qw; qp.Rw = Rw;
-    qp.enable_integrator = enableI;
+    qp.enable_y_constraints = logical(opts.enable_y_constraints);
 
     % Build prediction matrices for Y = F*xk + Phi*U (U length P)
     F = zeros(P, nx);
     Phi = zeros(P, P);
 
     for i = 1:P
-        Ai = A_aug^i;
-        F(i,:) = (C_aug * Ai);
+        Ai = A^i;
+        F(i,:) = (C * Ai);
 
         for j = 1:i
-            Aij = A_aug^(i-j);
-            Phi(i,j) = C_aug * Aij * B_aug;
+            Aij = A^(i-j);
+            Phi(i,j) = C * Aij * B;
         end
-        Phi(i,i) = Phi(i,i) + D_aug;
+        Phi(i,i) = Phi(i,i) + D;
     end
-
-    % Map dU (M) -> U (P) with move blocking
-    S = zeros(P, M);
-    for i = 1:P
-        for j = 1:M
-            if j <= min(i, M)
-                S(i,j) = 1;
-            end
-        end
-    end
-    oneP = ones(P,1);
-
-    Gdu = Phi * S;  % P x M
 
     Q = Qw * eye(P);
-    R = Rw * eye(M);
+    R = Rw * eye(P);
 
-    H = 2*(Gdu' * Q * Gdu + R);
+    H = 2*(Phi' * Q * Phi + R);
     H = (H + H')/2;
 
     qp.F = F;
     qp.Phi = Phi;
-    qp.S = S;
-    qp.oneP = oneP;
-    qp.Gdu = Gdu;
     qp.H = H;
     qp.Q = Q;
     qp.R = R;
 
     qp.solve = @solve_step;
 
-    function [du0, info] = solve_step(xk, r_dev, u_prev_dev, umin_dev, umax_dev, du_max)
+    function [u0, info] = solve_step(xk, r_dev, umin_dev, umax_dev, ymin_dev, ymax_dev)
         r = r_dev(:);
         if numel(r) < P
             r(end+1:P,1) = r(end);
@@ -101,19 +69,25 @@ function qp = qp_mpc_siso(sys_ss, P, M, Qw, Rw, opts)
             r = r(1:P);
         end
 
-        y_aff = F*xk + Phi*(oneP*u_prev_dev);
+        % Affine output due to state
+        y_aff = F*xk;
 
-        % Minimize ||(y_aff + Gdu*dU) - r||_Q^2 + ||dU||_R^2
-        f = 2*(Gdu' * Q * (y_aff - r));
+        % Minimize ||(y_aff + Phi*U) - r||_Q^2 + ||U||_R^2
+        f = 2*(Phi' * Q * (y_aff - r));
 
-        % Input bounds on predicted U:
-        % U = oneP*u_prev + S*dU
-        A_u = [ S; -S ];
-        b_u = [ (umax_dev - u_prev_dev)*ones(P,1);
-               -(umin_dev - u_prev_dev)*ones(P,1) ];
+        % Input bounds on predicted U
+        lb = umin_dev * ones(P,1);
+        ub = umax_dev * ones(P,1);
 
-        lb = -du_max * ones(M,1);
-        ub =  du_max * ones(M,1);
+        % Optional output constraints: ymin <= y_aff + Phi U <= ymax
+        if qp.enable_y_constraints
+            Aineq = [ Phi; -Phi ];
+            bineq = [ (ymax_dev*ones(P,1) - y_aff);
+                     -(ymin_dev*ones(P,1) - y_aff) ];
+        else
+            Aineq = [];
+            bineq = [];
+        end
 
         options = optimoptions('quadprog', ...
             'Display', 'off', ...
@@ -121,19 +95,19 @@ function qp = qp_mpc_siso(sys_ss, P, M, Qw, Rw, opts)
             'ConstraintTolerance', 1e-7, ...
             'OptimalityTolerance', 1e-7);
 
-        info = struct('status', -1, 'exitflag', [], 'du', zeros(M,1));
+        info = struct('status', -1, 'exitflag', [], 'U', zeros(P,1));
 
         try
-            [dU_opt, ~, exitflag, output] = quadprog(H, f, A_u, b_u, [], [], lb, ub, [], options);
+            [U_opt, ~, exitflag, output] = quadprog(H, f, Aineq, bineq, [], [], lb, ub, [], options);
             info.exitflag = exitflag;
             info.output = output;
-        
-            if exitflag > 0 && ~isempty(dU_opt)
+
+            if exitflag > 0 && ~isempty(U_opt)
                 info.status = 0;
-                info.du = dU_opt(:);
-                du0 = dU_opt(1);
+                info.U = U_opt(:);
+                u0 = U_opt(1);
             else
-                du0 = 0;
+                u0 = min(max(0, umin_dev), umax_dev); % safe fallback
             end
         catch ME
             info.status = -2;
@@ -141,7 +115,7 @@ function qp = qp_mpc_siso(sys_ss, P, M, Qw, Rw, opts)
             info.error_identifier = ME.identifier;
             info.error_message = ME.message;
             info.error_stack = ME.stack;
-            rethrow(ME);  % temporarily rethrow so you can see the real error
+            rethrow(ME);
         end
     end
 end

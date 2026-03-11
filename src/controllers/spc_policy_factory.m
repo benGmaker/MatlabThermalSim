@@ -1,16 +1,17 @@
 function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
-%SPC_POLICY_FACTORY Subspace ID + quadprog-based MPC policy.
+%SPC_POLICY_FACTORY Subspace ID (N4SID) + nominal MPC policy (matches report MPC formulation).
+%
+% Note: This is the "parametric SPC route" (identify A,B,C,D via subspace method, then do MPC).
 
     if nargin < 1
         config = config_simulation();
     end
 
-     
-    load(config.predictive.data_source, 'step_data'); % hard coded needs long term solution
-
-    u_data = step_data.Q(:);
-    y_data = step_data.T(:);
-    dt = step_data.params.dt;
+    ds = load_predictive_data(config);
+    
+    u_data = ds.u_data;
+    y_data = ds.T;
+    dt = ds.dt;
 
     u_mean = mean(u_data);
     y_mean = mean(y_data);
@@ -33,18 +34,26 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
     end
     sys_ss = ss(sys_id);
 
-    % shared config 
-    P = config.predictive.P;
-    M = config.predictive.M;
+    % shared config
+    P  = config.predictive.P;
     Qw = config.predictive.Q_weight;
     Rw = config.predictive.R_weight;
 
     umin_dev = config.constraints.u_min - u_mean;
     umax_dev = config.constraints.u_max - u_mean;
-    du_max = config.constraints.du_max;
 
-    qp_opts = struct('enable_integrator', config.enable_integrator);
-    qp = qp_mpc_siso(sys_ss, P, M, Qw, Rw, qp_opts);
+    if isfield(config.constraints,'y_min') && isfield(config.constraints,'y_max')
+        ymin_dev = config.constraints.y_min - y_mean;
+        ymax_dev = config.constraints.y_max - y_mean;
+        enable_y_constraints = true;
+    else
+        ymin_dev = -Inf;
+        ymax_dev =  Inf;
+        enable_y_constraints = false;
+    end
+
+    qp_opts = struct('enable_y_constraints', enable_y_constraints);
+    qp = qp_mpc_siso(sys_ss, P, Qw, Rw, qp_opts);
 
     meta = struct();
     meta.dt = dt;
@@ -52,9 +61,9 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
     meta.y_mean = y_mean;
     meta.model = sys_ss;
     meta.nx = nx;
-    meta.P = P; meta.M = M;
+    meta.P = P;
     meta.Qw = Qw; meta.Rw = Rw;
-    meta.enable_integrator = qp.enable_integrator;
+    meta.enable_y_constraints = enable_y_constraints;
 
     ctrl_init = @init_state;
     ctrl_step = @step;
@@ -70,29 +79,20 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
 
         ctrl.x = zeros(qp.nx, 1);
 
-        % IMPORTANT: match run_closed_loop_generic initial u(1)=0 (absolute)
-        u0_abs = 0;
-        ctrl.u_prev_dev = u0_abs - u_mean;
-
         ctrl.umin_dev = umin_dev;
         ctrl.umax_dev = umax_dev;
-        ctrl.du_max = du_max;
+        ctrl.ymin_dev = ymin_dev;
+        ctrl.ymax_dev = ymax_dev;
     end
 
-    function [u_next_abs, ctrl] = step(k, y_k_abs, r_traj_abs, ctrl, config) 
-        y_dev = y_k_abs - ctrl.y_mean;
+    function [u_next_abs, ctrl] = step(k, y_k_abs, r_traj_abs, ctrl, config)
+        %#ok<INUSD> k y_k_abs
         r_dev = r_traj_abs(:) - ctrl.y_mean;
 
-        if ctrl.qp.enable_integrator
-            xi_idx = numel(ctrl.x);
-            ctrl.x(xi_idx) = ctrl.x(xi_idx) + (r_dev(1) - y_dev);
-        end
+        [u0_dev, info] = ctrl.qp.solve(ctrl.x, r_dev, ctrl.umin_dev, ctrl.umax_dev, ctrl.ymin_dev, ctrl.ymax_dev); %#ok<NASGU>
 
-        [du0, info] = ctrl.qp.solve(ctrl.x, r_dev, ctrl.u_prev_dev, ctrl.umin_dev, ctrl.umax_dev, ctrl.du_max);
-
-        u_next_dev = ctrl.u_prev_dev + du0;
+        u_next_dev = u0_dev;
         u_next_dev = max(ctrl.umin_dev, min(ctrl.umax_dev, u_next_dev));
-        ctrl.u_prev_dev = u_next_dev;
 
         A = ctrl.qp.A; B = ctrl.qp.B;
         ctrl.x = A*ctrl.x + B*u_next_dev;

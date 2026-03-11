@@ -60,7 +60,7 @@ function save_config_readable(config, filename)
     fprintf(fid, 'Control Horizon (M):          %d samples\n', config.predictive.M);
     fprintf(fid, 'Output Tracking Weight (Q):   %.6g\n', config.predictive.Q_weight);
     fprintf(fid, 'Input Change Penalty (R):     %.6g\n', config.predictive.R_weight);
-    fprintf(fid, 'Data Source:                  %s\n', config.predictive.data_source);
+    fprintf(fid, 'Dataset Choice:                  %s\n', config.dataset_choice);
     fprintf(fid, '\n');
 
     % ============================ MPC ====================================

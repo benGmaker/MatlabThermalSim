@@ -8,15 +8,18 @@ function config = config_simulation()
 % The configuration is automatically saved with results for traceability
 
     %%  ========== RUN CONFIGURATION ==========
+    % Closed loop
     config.run_collect_data = false;
     config.run_system_id = false;
-    config.run_MPC = false;
-    config.run_SPC = false;
-    config.run_DMC = false;
+    config.run_MPC = true;
+    config.run_SPC = true;
+    config.run_DMC = true;
     config.run_DeePC = false;
-    config.run_closed_loop_comparison = false;
-    config.run_predictive = true;
-    config.run_predictive_comparison = true;
+    config.run_closed_loop_comparison = true;
+
+    % Predictive 
+    config.run_predictive = false;
+    config.run_predictive_comparison = false;
 
     %% ========== SIMULATION PARAMETERS ==========
     config.simulation.t_sim = 600;          % Simulation time [s]
@@ -33,13 +36,12 @@ function config = config_simulation()
     config.constraints.du_max = 50;         % Max rate of change [%/sample]
     
     %% ========== GLOBAL PREDICTIVE CONTROL PARAMETERS ==========
-    config.predictive.P = 10; % Prediction horizon [samples]
-    config.predictive.M = 10;                      % Control horizon [samples]
+    config.predictive.P = 20; % Prediction horizon [samples]
+    config.predictive.M = 1;                      % Control horizon [samples]
     config.predictive.Q_weight = 1;                % Output tracking weight
-    config.predictive.R_weight = 0.1;            % Input change penalty
-    config.predictive.data_source = 'results/data/step_response_data.mat'; % Source data 
-    config.dataset_choice = 'step'; %legacy for system ID
-
+    config.predictive.R_weight = 0.01;            % Input change penalty
+    config.dataset_choice = 'multisine';  % options: step, multisine, impulse, doubleT 
+    % DMC always uses step response data 
     %% ========== MPC PARAMETERS ==========
     config.enable_integrator = false;       % Offset free MPC
 
@@ -62,7 +64,7 @@ function config = config_simulation()
     
     %% ========== NOISE PARAMETERS ==========
     % Noise is added to measurement data during data collection
-    config.noise.enable = true;                 % Enable/disable noise
+    config.noise.enable = false;                 % Enable/disable noise
     config.noise.type = 'uniform';             % 'gaussian', 'uniform', or 'colored'
     config.noise.SNR_dB = 10;                   % Desired Signal-to-Noise Ratio [dB]
     config.noise.seed = 66;                     % Random seed (for reproducibility)

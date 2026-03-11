@@ -1,5 +1,5 @@
 function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
-%MPC_POLICY_FACTORY Quadprog-based MPC policy.
+%MPC_POLICY_FACTORY Quadprog-based MPC policy (nominal MPC matching report).
 
     if nargin < 1
         config = config_simulation();
@@ -20,18 +20,28 @@ function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
     end
     sys_ss = ss(sys_d);
 
-    % shared config 
-    P = config.predictive.P;
-    M = config.predictive.M;
+    % shared config
+    P  = config.predictive.P;           % prediction horizon N in report
     Qw = config.predictive.Q_weight;
     Rw = config.predictive.R_weight;
 
     umin_dev = config.constraints.u_min - u_mean;
     umax_dev = config.constraints.u_max - u_mean;
-    du_max = config.constraints.du_max;
 
-    qp_opts = struct('enable_integrator', config.enable_integrator);
-    qp = qp_mpc_siso(sys_ss, P, M, Qw, Rw, qp_opts);
+    % Output constraints (required if you want to match report's y in Y)
+    % If you don't have these fields yet, either add them to config or disable y constraints.
+    if isfield(config.constraints,'y_min') && isfield(config.constraints,'y_max')
+        ymin_dev = config.constraints.y_min - y_mean;
+        ymax_dev = config.constraints.y_max - y_mean;
+        enable_y_constraints = true;
+    else
+        ymin_dev = -Inf;
+        ymax_dev =  Inf;
+        enable_y_constraints = false;
+    end
+
+    qp_opts = struct('enable_y_constraints', enable_y_constraints);
+    qp = qp_mpc_siso(sys_ss, P, Qw, Rw, qp_opts);
 
     meta = struct();
     meta.dt = dt;
@@ -39,9 +49,9 @@ function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
     meta.y_mean = y_mean;
     meta.sys_d = sys_d;
     meta.sys_ss = sys_ss;
-    meta.P = P; meta.M = M;
+    meta.P = P;
     meta.Qw = Qw; meta.Rw = Rw;
-    meta.enable_integrator = qp.enable_integrator;
+    meta.enable_y_constraints = enable_y_constraints;
 
     ctrl_init = @init_state;
     ctrl_step = @step;
@@ -55,44 +65,31 @@ function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
         ctrl.sys_ss = sys_ss;
         ctrl.qp = qp;
 
-        % Augmented state size depends on qp integrator option
         ctrl.x = zeros(qp.nx, 1);
-
-        % IMPORTANT: match run_closed_loop_generic initial u(1)=0 (absolute)
-        u0_abs = 0;
-        ctrl.u_prev_dev = u0_abs - u_mean;
 
         ctrl.umin_dev = umin_dev;
         ctrl.umax_dev = umax_dev;
-        ctrl.du_max = du_max;
+        ctrl.ymin_dev = ymin_dev;
+        ctrl.ymax_dev = ymax_dev;
     end
 
-    function [u_next_abs, ctrl] = step(k, y_k_abs, r_traj_abs, ctrl, config) 
+    function [u_next_abs, ctrl] = step(k, y_k_abs, r_traj_abs, ctrl, config)
+        %#ok<INUSD> k config
         % Deviation signals
-        y_dev = y_k_abs - ctrl.y_mean;
         r_dev = r_traj_abs(:) - ctrl.y_mean;
 
-        % ---- Measurement update for integrator state (if enabled)
-        % Our augmentation sets last state as an integrator-like term.
-        % We update it using actual measured y and reference (first element).
-        if ctrl.qp.enable_integrator
-            % x = [xplant; xi], update xi <- xi + (r - y)
-            xi_idx = numel(ctrl.x);
-            ctrl.x(xi_idx) = ctrl.x(xi_idx) + (r_dev(1) - y_dev);
-        end
+        % Solve nominal MPC: decision variable is predicted absolute U sequence
+        [u0_dev, info] = ctrl.qp.solve(ctrl.x, r_dev, ctrl.umin_dev, ctrl.umax_dev, ctrl.ymin_dev, ctrl.ymax_dev); %#ok<NASGU>
 
-        % ---- Solve QP
-        [du0, info] = ctrl.qp.solve(ctrl.x, r_dev, ctrl.u_prev_dev, ctrl.umin_dev, ctrl.umax_dev, ctrl.du_max);
-
-        u_next_dev = ctrl.u_prev_dev + du0;
+        % Apply first input (deviation)
+        u_next_dev = u0_dev;
         u_next_dev = max(ctrl.umin_dev, min(ctrl.umax_dev, u_next_dev));
-        ctrl.u_prev_dev = u_next_dev;
 
-        % ---- Time update model state (using augmented model)
+        % Time update model state
         A = ctrl.qp.A; B = ctrl.qp.B;
         ctrl.x = A*ctrl.x + B*u_next_dev;
 
-        % Convert to absolute
+        % Convert to absolute and clamp
         u_next_abs = u_next_dev + ctrl.u_mean;
         u_next_abs = max(config.constraints.u_min, min(config.constraints.u_max, u_next_abs));
     end
