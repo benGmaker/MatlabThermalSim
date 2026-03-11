@@ -83,21 +83,42 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
         ctrl.umax_dev = umax_dev;
         ctrl.ymin_dev = ymin_dev;
         ctrl.ymax_dev = ymax_dev;
+        ctrl.u_prev_dev = 0;
+        
+        A = qp.A; C = qp.C;
+        % For SISO: place for (A',C') then transpose gain back
+        try
+            ctrl.L = place(A', C', desired).';
+        catch
+            % Fallback if place fails (e.g., non-observable numeric issues)
+            ctrl.L = zeros(size(A,1), size(C,1));
+        end
+        % --------------------------------------
     end
 
     function [u_next_abs, ctrl] = step(k, y_k_abs, r_traj_abs, ctrl, config)
-        %#ok<INUSD> k y_k_abs
+        % Deviation signals
+        y_dev = y_k_abs - ctrl.y_mean;
         r_dev = r_traj_abs(:) - ctrl.y_mean;
 
+        % ---- Observer update: predict then correct ----
+        x_pred = ctrl.qp.A*ctrl.x + ctrl.qp.B*ctrl.u_prev_dev;
+        y_pred = ctrl.qp.C*x_pred + ctrl.qp.D*ctrl.u_prev_dev;
+        ctrl.x = x_pred + ctrl.L*(y_dev - y_pred);
+
+         % Solve nominal MPC
         [u0_dev, info] = ctrl.qp.solve(ctrl.x, r_dev, ctrl.umin_dev, ctrl.umax_dev, ctrl.ymin_dev, ctrl.ymax_dev); %#ok<NASGU>
 
+        % Apply first input (deviation)
         u_next_dev = u0_dev;
         u_next_dev = max(ctrl.umin_dev, min(ctrl.umax_dev, u_next_dev));
 
-        A = ctrl.qp.A; B = ctrl.qp.B;
-        ctrl.x = A*ctrl.x + B*u_next_dev;
+        % store previous input for next observer update
+        ctrl.u_prev_dev = u_next_dev;
 
+        % Apply constrains
         u_next_abs = u_next_dev + ctrl.u_mean;
         u_next_abs = max(config.constraints.u_min, min(config.constraints.u_max, u_next_abs));
+
     end
 end

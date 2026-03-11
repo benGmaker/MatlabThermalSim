@@ -24,9 +24,9 @@ function ds = load_predictive_data(config)
         case "impulse"
             src = 'results/data/impulse_response_data.mat';
             var = 'impulse_data';
-        case "doubleT"
+        case "doublet"
             src = 'results/data/doublet_response_data.mat';
-            var = 'impulse_data';
+            var = 'doublet_data';
         otherwise
             error('load_predictive_data_switch:UnsupportedChoice', ...
                 'Unsupported config.dataset_choice: %s', string(config.dataset_choice));

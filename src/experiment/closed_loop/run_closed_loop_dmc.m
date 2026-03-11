@@ -24,7 +24,7 @@ function DMC_results = run_closed_loop_dmc(config)
     DMC_results.IAE = results.metrics.IAE;
     DMC_results.control_effort = results.metrics.control_effort;
 
-    DMC_results.params = struct('P', config.predictive.P, 'M', config.predictive.M, 'N', config.DMC.N, ...
+    DMC_results.params = struct('P', config.predictive.P, 'M', config.predictive.M, ...
         'Q', config.predictive.Q_weight, 'R', config.predictive.R_weight);
    
     DMC_results.step_response = meta.S;

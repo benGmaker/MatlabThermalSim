@@ -6,13 +6,11 @@ function [ctrl_step, ctrl_init, meta] = deepc_policy_factory(config)
         config = config_simulation();
     end
 
-    
-    load(config.predictive.data_source, 'step_data'); % hard coded needs long term solution
-
-
-    u_data_abs = step_data.Q(:);
-    y_data_abs = step_data.T(:);
-    dt = step_data.params.dt;
+    % loading data
+    ds = load_predictive_data(config);
+    u_data_abs = ds.Q(:);
+    y_data_abs = ds.T(:);
+    dt = ds.params.dt;
 
     % Center data (DeePC in deviation variables)
     u_mean = mean(u_data_abs);
@@ -25,7 +23,7 @@ function [ctrl_step, ctrl_init, meta] = deepc_policy_factory(config)
 
     % DeePC params
     T_ini = config.DeePC.T_ini;
-    N = config.DeePC.N;
+    N = config.predictive.P; % Prediction horizon [samples]
     lambda_y = config.DeePC.lambda_y;
     lambda_g = config.DeePC.lambda_g;
     lambda_u = config.DeePC.lambda_u;

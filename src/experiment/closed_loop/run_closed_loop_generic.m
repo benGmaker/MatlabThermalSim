@@ -28,11 +28,7 @@ function [results, ctrl_final] = run_closed_loop_generic(config, controller, con
     ctrl = controller_init();
 
     for k = 1:n_steps-1
-        if isfield(config, 'ref_preview_horizon')
-            P_preview = config.ref_preview_horizon;
-        else
-            P_preview = 1;
-        end
+        P_preview = config.predictive.P;
 
         r_traj = r_abs(k:min(k+P_preview-1, n_steps));
         if numel(r_traj) < P_preview

@@ -9,12 +9,12 @@ function config = config_simulation()
 
     %%  ========== RUN CONFIGURATION ==========
     % Closed loop
-    config.run_collect_data = false;
-    config.run_system_id = false;
+    config.run_collect_data = true;
+    config.run_system_id = true;
     config.run_MPC = true;
     config.run_SPC = true;
     config.run_DMC = true;
-    config.run_DeePC = false;
+    config.run_DeePC = true;
     config.run_closed_loop_comparison = true;
 
     % Predictive 
@@ -37,10 +37,10 @@ function config = config_simulation()
     
     %% ========== GLOBAL PREDICTIVE CONTROL PARAMETERS ==========
     config.predictive.P = 20; % Prediction horizon [samples]
-    config.predictive.M = 1;                      % Control horizon [samples]
-    config.predictive.Q_weight = 1;                % Output tracking weight
-    config.predictive.R_weight = 0.01;            % Input change penalty
-    config.dataset_choice = 'multisine';  % options: step, multisine, impulse, doubleT 
+    config.predictive.M = 20;                      % Control horizon [samples]
+    config.predictive.Q_weight = 100;                % Output tracking weight
+    config.predictive.R_weight = 0.0001;            % Input change penalty
+    config.dataset_choice = 'doublet';  % options: step, multisine, impulse, doubleT 
     % DMC always uses step response data 
     %% ========== MPC PARAMETERS ==========
     config.enable_integrator = false;       % Offset free MPC
@@ -53,14 +53,13 @@ function config = config_simulation()
     config.SPC.ident.form = 'canonical';    % passed to ssestOptions/n4sidOptions if used
     
     %% ========== DMC PARAMETERS ==========
-    config.DMC.N = 100;                     % Model horizon (step response length) [samples]
+    
     
     %% ========== DeePC PARAMETERS ==========
     config.DeePC.T_ini = 5;                 % Past horizon [samples]
-    config.DeePC.N = 15;                    % Future horizon [samples]
-    config.DeePC.lambda_y = 1000;           % Slack penalty (output constraint)
-    config.DeePC.lambda_g = 1000;           % Slack penalty (Hankel constraint)
-    config.DeePC.lambda_u = 10;             % Input regularization
+    config.DeePC.lambda_y = 1;           % Slack penalty (output constraint)
+    config.DeePC.lambda_g = 1;           % Slack penalty (Hankel constraint)
+    config.DeePC.lambda_u = 0.01;             % Input regularization
     
     %% ========== NOISE PARAMETERS ==========
     % Noise is added to measurement data during data collection
@@ -105,7 +104,7 @@ function config = config_simulation()
     config.thermal_model.alpha = 0.01;      % Heater efficiency
     config.thermal_model.eps = 0.9;         % Radiation coefficient
     config.thermal_model.sigma = 5.67e-8;   % Stefan-Boltzmann constant [W/m^2-K^4]
-    config.thermal_model.model_type = 'linear';  % 'linear' or 'nonlinear'
+    config.thermal_model.model_type = 'nonlinear';  % 'linear' or 'nonlinear'
     
     %% ========== PLOTTING PARAMETERS ==========
     config.plotting.colors.MPC = [0.2, 0.7, 0.2];      % Lighter Green

@@ -84,13 +84,11 @@ function save_config_readable(config, filename)
     % ============================ DMC ====================================
     % In current config, DMC includes N and step_response_source only
     fprintf(fid, '--- DMC PARAMETERS ---\n');
-    fprintf(fid, 'Model Horizon (N):            %d samples\n', config.DMC.N);
     fprintf(fid, '\n');
 
     % =========================== DeePC ===================================
     fprintf(fid, '--- DeePC PARAMETERS ---\n');
     fprintf(fid, 'Past Horizon (T_ini):         %d samples\n', config.DeePC.T_ini);
-    fprintf(fid, 'Future Horizon (N):           %d samples\n', config.DeePC.N);
     fprintf(fid, 'Slack Penalty Output (lambda_y): %g\n', config.DeePC.lambda_y);
     fprintf(fid, 'Slack Penalty Hankel (lambda_g): %g\n', config.DeePC.lambda_g);
     fprintf(fid, 'Input Regularization (lambda_u): %g\n', config.DeePC.lambda_u);

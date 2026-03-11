@@ -21,15 +21,13 @@ function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
     sys_ss = ss(sys_d);
 
     % shared config
-    P  = config.predictive.P;           % prediction horizon N in report
+    P  = config.predictive.P;
     Qw = config.predictive.Q_weight;
     Rw = config.predictive.R_weight;
 
     umin_dev = config.constraints.u_min - u_mean;
     umax_dev = config.constraints.u_max - u_mean;
 
-    % Output constraints (required if you want to match report's y in Y)
-    % If you don't have these fields yet, either add them to config or disable y constraints.
     if isfield(config.constraints,'y_min') && isfield(config.constraints,'y_max')
         ymin_dev = config.constraints.y_min - y_mean;
         ymax_dev = config.constraints.y_max - y_mean;
@@ -71,23 +69,47 @@ function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
         ctrl.umax_dev = umax_dev;
         ctrl.ymin_dev = ymin_dev;
         ctrl.ymax_dev = ymax_dev;
+
+        % ---- Add observer + previous input ----
+        ctrl.u_prev_dev = 0;
+
+        A = qp.A; C = qp.C;
+        % Place observer poles faster than plant poles (heuristic)
+        polesA = eig(A);
+        desired = 0.5 * polesA;
+        % Ensure stable and inside unit circle
+        desired = min(desired, 0.8);
+        desired = max(desired, -0.8);
+
+        % For SISO: place for (A',C') then transpose gain back
+        try
+            ctrl.L = place(A', C', desired).';
+        catch
+            % Fallback if place fails (e.g., non-observable numeric issues)
+            ctrl.L = zeros(size(A,1), size(C,1));
+        end
+        % --------------------------------------
     end
 
     function [u_next_abs, ctrl] = step(k, y_k_abs, r_traj_abs, ctrl, config)
-        %#ok<INUSD> k config
         % Deviation signals
+        y_dev = y_k_abs - ctrl.y_mean;
         r_dev = r_traj_abs(:) - ctrl.y_mean;
 
-        % Solve nominal MPC: decision variable is predicted absolute U sequence
-        [u0_dev, info] = ctrl.qp.solve(ctrl.x, r_dev, ctrl.umin_dev, ctrl.umax_dev, ctrl.ymin_dev, ctrl.ymax_dev); %#ok<NASGU>
+        % ---- Observer update: predict then correct ----
+        x_pred = ctrl.qp.A*ctrl.x + ctrl.qp.B*ctrl.u_prev_dev;
+        y_pred = ctrl.qp.C*x_pred + ctrl.qp.D*ctrl.u_prev_dev;
+        ctrl.x = x_pred + ctrl.L*(y_dev - y_pred);
+        % ---------------------------------------------
+
+        % Solve nominal MPC
+        [u0_dev, info] = ctrl.qp.solve(ctrl.x, r_dev, ctrl.umin_dev, ctrl.umax_dev, ctrl.ymin_dev, ctrl.ymax_dev);
 
         % Apply first input (deviation)
-        u_next_dev = u0_dev;
-        u_next_dev = max(ctrl.umin_dev, min(ctrl.umax_dev, u_next_dev));
+        u_next_dev = max(ctrl.umin_dev, min(ctrl.umax_dev, u0_dev));
 
-        % Time update model state
-        A = ctrl.qp.A; B = ctrl.qp.B;
-        ctrl.x = A*ctrl.x + B*u_next_dev;
+        % store previous input for next observer update
+        ctrl.u_prev_dev = u_next_dev;
 
         % Convert to absolute and clamp
         u_next_abs = u_next_dev + ctrl.u_mean;

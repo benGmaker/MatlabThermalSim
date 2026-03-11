@@ -7,7 +7,7 @@ function DeePC_results = run_closed_loop_deepc(config)
     close all;
     if ~exist('results', 'dir'), mkdir('results'); end
 
-    config.ref_preview_horizon = config.DeePC.N;
+    config.ref_preview_horizon = config.predictive.P;
     config.controller_name = 'DeePC';
 
     [ctrl_step, ctrl_init, meta] = deepc_policy_factory(config);
@@ -28,8 +28,9 @@ function DeePC_results = run_closed_loop_deepc(config)
     DeePC_results.control_effort = results.metrics.control_effort;
 
     DeePC_results.n_failures = ctrl_final.n_failures;
+    fprintf('n_failures = %d\n', ctrl_final.n_failures);
 
-    DeePC_results.params = struct('T_ini', config.DeePC.T_ini, 'N', config.DeePC.N, ...
+    DeePC_results.params = struct('T_ini', config.DeePC.T_ini, 'N', config.predictive.P, ...
         'lambda_y', config.DeePC.lambda_y, 'lambda_g', config.DeePC.lambda_g, 'lambda_u', config.DeePC.lambda_u);
 
     DeePC_results.config = config;
