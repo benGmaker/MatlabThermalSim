@@ -40,6 +40,6 @@ function spc = spc_fit_lifted_predictor_siso(u_id, y_id, i, nx, P)
     spc.Kx = Kx;
     spc.F = F;
     spc.Phi = Phi;
-    spc.Gamma_i_hat = Gamma_i_hat; % keep if you want for debugging
+    spc.Gamma_i_hat = Gamma_i_hat; 
     spc.sv = sv;
 end

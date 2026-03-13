@@ -8,16 +8,11 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
 %   - Fit lifted predictor Y = F*x + Phi*U directly from data
 %   - Solve the same condensed MPC QP, but with (F,Phi) from data (no A,B,C,D)
 
-    if nargin < 1
-        config = config_simulation();
-    end
-
+    % loading and centering data
     ds = load_predictive_data(config);
-
     u_data = ds.u_data;
     y_data = ds.T;
     dt = ds.dt;
-
     u_mean = mean(u_data);
     y_mean = mean(y_data);
     u_id = u_data - u_mean;
@@ -31,6 +26,7 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
     umin_dev = config.constraints.u_min - u_mean;
     umax_dev = config.constraints.u_max - u_mean;
 
+    % Position constraints (optional) 
     if isfield(config.constraints,'y_min') && isfield(config.constraints,'y_max')
         ymin_dev = config.constraints.y_min - y_mean;
         ymax_dev = config.constraints.y_max - y_mean;
@@ -52,9 +48,8 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
     % Fit SPC lifted predictor directly from data
     spc = spc_fit_lifted_predictor_siso(u_id, y_id, i, nx, P);
 
-    % Build QP using lifted predictor
-    qp_opts = struct('enable_y_constraints', enable_y_constraints);
-    qp = qp_spc_lifted_siso(spc.F, spc.Phi, P, Qw, Rw, qp_opts);
+    % Build quadratic program
+    qp = qp_spc_lifted_siso(spc.F, spc.Phi, P, Qw, Rw, config);
 
     meta = struct();
     meta.dt = dt;
@@ -121,14 +116,5 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
         % back to absolute + saturate
         u_next_abs = u_next_dev + ctrl.u_mean;
         u_next_abs = max(config.constraints.u_min, min(config.constraints.u_max, u_next_abs));
-    end
-end
-
-function u = u_prev_dev_if_exists_local(ctrl)
-% helper (not used; kept if you want standalone)
-    if isfield(ctrl, 'u_prev_dev')
-        u = ctrl.u_prev_dev;
-    else
-        u = 0;
     end
 end

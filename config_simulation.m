@@ -9,10 +9,10 @@ function config = config_simulation()
 
     %%  ========== RUN CONFIGURATION ==========
     % Closed loop
-    config.run_collect_data = true;
-    config.run_system_id = true;
-    config.run_MPC = true;
-    config.run_SPC = false;
+    config.run_collect_data = false;
+    config.run_system_id = false;
+    config.run_MPC = false;
+    config.run_SPC = true;
     config.run_DMC = false;
     config.run_DeePC = false;
     config.run_closed_loop_comparison = true;
@@ -33,30 +33,32 @@ function config = config_simulation()
     %% ========== CONTROL CONSTRAINTS (SHARED ACROSS ALL CONTROLLERS) ==========
     config.constraints.u_min = 0;           % Min heater power [%]
     config.constraints.u_max = 100;         % Max heater power [%]
-    config.constraints.du_max = 10;         % Max rate of change [%/sample]
+
+    % y constraints
+    config.constraints.enable_y_constraints = false; 
+
+    % Du constraints
+    config.constraints.enable_du_constraints = false; 
+    config.constraints.du_max = inf;         % Max rate of change [%/sample]
+    config.constraints.du_min = -inf;
     
+    % smoothing (penalty). Start here:
+    config.constraints.enable_du_penalty = false;
+    config.constraints.du_weight = inf;   
+
     %% ========== GLOBAL PREDICTIVE CONTROL PARAMETERS ==========
     config.predictive.P = 20; % Prediction horizon [samples]
     config.predictive.M = 20;                      % Control horizon [samples]
     config.predictive.Q_weight = 10;                % Output tracking weight
     config.predictive.R_weight = 0.001;            % Input change penalty
-    config.dataset_choice = 'multisine';  % options: step, multisine, impulse, doublet 
+    config.dataset_choice = 'step';  % options: step, multisine, impulse, doublet 
     % DMC always uses step response data 
     %% ========== MPC PARAMETERS ==========
     config.enable_integrator = false;       % Offset free MPC
 
     %% ========== SPC (Subspace Predictive Control) PARAMETERS ==========
-    config.SPC.route = 'lifted';
     config.SPC.ident.nx = 2;
-    config.SPC.reg.lambda = 1e-4;
-    % rate constraint per sample (you said du_max=50)
-    config.SPC.mpc.enable_du_constraints = true;
-    config.SPC.mpc.du_max = 10;
-    config.SPC.mpc.du_min = -10;
-    
-    % smoothing (penalty). Start here:
-    config.SPC.mpc.enable_du_penalty = true;
-    config.SPC.mpc.du_weight = 100;   % try 50, then 100 if still jittery
+
     
     %% ========== DMC PARAMETERS ==========
     

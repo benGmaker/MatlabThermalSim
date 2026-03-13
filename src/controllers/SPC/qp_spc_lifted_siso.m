@@ -13,22 +13,6 @@ function qp = qp_spc_lifted_siso(F, Phi, P, Qw, Rw, opts)
 %   ymin <= y_k <= ymax (optional)
 %   dumin <= Δu_k <= dumax (optional), with Δu0 = u0 - u_prev
 %
-% Notes:
-%   - Requires Optimization Toolbox (quadprog)
-%   - This script is a drop-in replacement for your earlier qp_spc_lifted_siso.m,
-%     but the solver signature changes to include u_prev_dev.
-
-    if nargin < 6, opts = struct(); end
-
-    % ---- defaults ----
-    if ~isfield(opts,'enable_y_constraints'),  opts.enable_y_constraints = true; end
-
-    if ~isfield(opts,'enable_du_penalty'),    opts.enable_du_penalty = true; end
-    if ~isfield(opts,'du_weight'),           opts.du_weight = 10; end  % start here; tune up for smoother
-
-    if ~isfield(opts,'enable_du_constraints'), opts.enable_du_constraints = true; end
-    if ~isfield(opts,'du_min'),               opts.du_min = -10; end   % your stated limits
-    if ~isfield(opts,'du_max'),               opts.du_max =  10; end
 
     % ---- dimensions ----
     if size(F,1) ~= P || size(Phi,1) ~= P || size(Phi,2) ~= P
@@ -51,7 +35,7 @@ function qp = qp_spc_lifted_siso(F, Phi, P, Qw, Rw, opts)
         D(k, k-1) = -1;
     end
 
-    if opts.enable_du_penalty
+    if opts.constraints.enable_du_penalty
         S = opts.du_weight * eye(P);
         H_du = 2*(D' * S * D);
     else
@@ -67,13 +51,13 @@ function qp = qp_spc_lifted_siso(F, Phi, P, Qw, Rw, opts)
     qp.F = F;
     qp.Phi = Phi;
 
-    qp.enable_y_constraints   = logical(opts.enable_y_constraints);
-    qp.enable_du_penalty      = logical(opts.enable_du_penalty);
-    qp.enable_du_constraints  = logical(opts.enable_du_constraints);
+    qp.enable_y_constraints   = logical(opts.constraints.enable_y_constraints);
+    qp.enable_du_penalty      = logical(opts.constraints.enable_du_penalty);
+    qp.enable_du_constraints  = logical(opts.constraints.enable_du_constraints);
 
-    qp.du_weight = opts.du_weight;
-    qp.du_min = opts.du_min;
-    qp.du_max = opts.du_max;
+    qp.du_weight = opts.constraints.du_weight;
+    qp.du_min = opts.constraints.du_min;
+    qp.du_max = opts.constraints.du_max;
 
     qp.solve = @solve_step;
 
