@@ -73,14 +73,20 @@ function system_identification(config)
     stepinfo_tf = stepinfo(sys_tf);
     fprintf('  Rise time: %.2f s\n', stepinfo_tf.RiseTime);
     fprintf('  Settling time: %.2f s\n', stepinfo_tf.SettlingTime);
+
+
+    fprintf('\Converting state-space model...\n')
+    sys_ss_c = ss(sys_tf);
+ 
+    % Discrete-time state-space using the experiment sample time dt
+    % (choose method: 'zoh' is typical for sampled-data inputs)
+    sys_ss = c2d(sys_ss_c, dt, 'zoh');
     
-    %% ========== STATE-SPACE ESTIMATION ==========
-    fprintf('\nEstimating state-space model...\n');
+    % Optional: make it explicit in output
+    sys_ss.Ts = dt;
     
-    sys_ss = ssest(data_est, n_poles);
-    
-    fprintf('  State-space model order: %d\n', order(sys_ss));
-    
+    fprintf('  Discretized SS sample time Ts = %.6g s\n', sys_ss.Ts);
+        
     %% ========== MODEL VALIDATION ==========
     fprintf('\nValidating models...\n');
     

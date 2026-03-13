@@ -28,7 +28,7 @@ function [results, ctrl_final] = run_closed_loop_generic(config, controller, con
     ctrl = controller_init();
 
     for k = 1:n_steps-1
-        P_preview = config.predictive.P;
+        P_preview = config.predictive.P; % Prediction horizon
 
         r_traj = r_abs(k:min(k+P_preview-1, n_steps));
         if numel(r_traj) < P_preview
@@ -37,6 +37,7 @@ function [results, ctrl_final] = run_closed_loop_generic(config, controller, con
 
         [u_next, ctrl] = controller(k, y(k), r_traj, ctrl, config);
 
+        % Hard input bounds
         u_next = max(config.constraints.u_min, min(config.constraints.u_max, u_next));
         u(k+1) = u_next;
 

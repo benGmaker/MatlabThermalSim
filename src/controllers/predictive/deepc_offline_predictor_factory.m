@@ -5,11 +5,11 @@ function [predictor_step, predictor_init, meta] = deepc_offline_predictor_factor
 
     if nargin < 1, config = config_simulation(); end
 
-    load(config.predictive.data_source, 'step_data');
+    ds = load_predictive_data(config);
 
-    u_abs = step_data.Q(:);
-    y_abs = step_data.T(:);
-    dt = step_data.params.dt;
+    u_abs = ds.Q(:);
+    y_abs = ds.T(:);
+    dt = ds.params.dt;
 
     u_mean = mean(u_abs);
     y_mean = mean(y_abs);
@@ -19,7 +19,7 @@ function [predictor_step, predictor_init, meta] = deepc_offline_predictor_factor
     L = numel(u);
 
     T_ini = config.DeePC.T_ini;
-    N = config.DeePC.N;
+    N = config.predictive.P;
 
     % Regularization (use existing config terms; interpret as ridge for numerical stability)
     lambda_g = config.DeePC.lambda_g;  % used here as ridge on g

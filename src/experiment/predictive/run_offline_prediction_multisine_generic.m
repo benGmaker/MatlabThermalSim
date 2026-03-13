@@ -14,10 +14,10 @@ function results = run_offline_prediction_multisine_generic(config, predictor_st
         predictor_init = @() struct();
     end
 
-    load(config.predictive.data_source , 'step_data');
-    u_meas = step_data.Q(:);   % absolute
-    y_meas = step_data.T(:);   % absolute
-    dt = step_data.params.dt;
+    ds = load_predictive_data(config);
+    u_meas = ds.Q(:);   % absolute
+    y_meas = ds.T(:);   % absolute
+    dt = ds.params.dt;
 
     n_steps = numel(y_meas);
     if numel(u_meas) ~= n_steps

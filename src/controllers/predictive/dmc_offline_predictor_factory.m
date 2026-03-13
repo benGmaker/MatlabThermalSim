@@ -18,7 +18,7 @@ function [predictor_step, predictor_init, meta] = dmc_offline_predictor_factory(
     y_mean = identified_models.y_mean;
 
 
-    N = config.DMC.N;
+    N = config.predictive.P;
     S = get_measured_step_response_local(N);
 
     S = S(:);

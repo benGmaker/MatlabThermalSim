@@ -8,17 +8,10 @@ function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
     data = load('results/data/identified_models.mat', 'identified_models');
     identified_models = data.identified_models;
 
-    sys = identified_models.sys_tf;
+    sys_ss = identified_models.sys_ss;
     dt = identified_models.dt;
     u_mean = identified_models.u_mean;
     y_mean = identified_models.y_mean;
-
-    if ~isdt(sys)
-        sys_d = c2d(sys, dt, 'zoh');
-    else
-        sys_d = sys;
-    end
-    sys_ss = ss(sys_d);
 
     % shared config
     P  = config.predictive.P;
@@ -28,6 +21,7 @@ function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
     umin_dev = config.constraints.u_min - u_mean;
     umax_dev = config.constraints.u_max - u_mean;
 
+    % optional y constraints 
     if isfield(config.constraints,'y_min') && isfield(config.constraints,'y_max')
         ymin_dev = config.constraints.y_min - y_mean;
         ymax_dev = config.constraints.y_max - y_mean;
@@ -45,7 +39,6 @@ function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
     meta.dt = dt;
     meta.u_mean = u_mean;
     meta.y_mean = y_mean;
-    meta.sys_d = sys_d;
     meta.sys_ss = sys_ss;
     meta.P = P;
     meta.Qw = Qw; meta.Rw = Rw;

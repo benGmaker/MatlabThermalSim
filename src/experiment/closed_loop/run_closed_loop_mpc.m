@@ -7,7 +7,7 @@ function MPC_results = run_closed_loop_mpc(config)
     config.ref_preview_horizon = 1;
 
     [ctrl_step, ctrl_init] = mpc_policy_factory(config);
-    [results, ctrl_final] = run_closed_loop_generic(config, ctrl_step, ctrl_init); %#ok<ASGLU>
+    [results, ctrl_final] = run_closed_loop_generic(config, ctrl_step, ctrl_init); 
 
     MPC_results = struct();
     MPC_results.t = results.t;

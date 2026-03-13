@@ -130,7 +130,7 @@ function experiment_data_collection(config)
     % Generate multisine frequencies
     freqs = logspace(log10(freq_min), log10(freq_max), n_freq);
     
-    rng(42);
+    rng(66);
     phases = 2*pi*rand(1, n_freq);
     
     Q_multisine = @(t) multisine_offset + multisine_amplitude * ...

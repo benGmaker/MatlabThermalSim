@@ -5,11 +5,11 @@ function [predictor_step, predictor_init, meta] = spc_offline_predictor_factory(
 
     if nargin < 1, config = config_simulation(); end
 
-    load(config.predictive.data_source, 'step_data');
+    ds = load_predictive_data(config);
 
-    u_abs = step_data.Q(:);
-    y_abs = step_data.T(:);
-    dt = step_data.params.dt;
+    u_abs = ds.Q(:);
+    y_abs = ds.T(:);
+    dt = ds.params.dt;
 
     % center like spc_policy_factory
     u_mean = mean(u_abs);
@@ -20,13 +20,9 @@ function [predictor_step, predictor_init, meta] = spc_offline_predictor_factory(
     z = iddata(y_id, u_id, dt);
     nx = config.SPC.ident.nx;
 
-    switch lower(config.SPC.ident.method)
-        case 'n4sid'
-            opt = n4sidOptions('Focus', config.SPC.ident.focus);
-            sys_id = n4sid(z, nx, opt);
-        otherwise
-            error('Unsupported SPC ident method: %s', config.SPC.ident.method);
-    end
+    opt = n4sidOptions('Focus', 'simulation');
+    sys_id = n4sid(z, nx, opt);
+
 
     if ~isdt(sys_id)
         sys_id = c2d(sys_id, dt, 'zoh');
