@@ -80,7 +80,7 @@ function config = config_simulation()
     config.DeePC.deterministic = true;  
     config.DeePC.slack_mode = 'g'; % g or g+u
     config.DeePC.lambda_y = 0;           % Slack penalty (output constraint)
-    config.DeePC.lambda_g = 1e-4;           % Slack penalty (Hankel constraint)
+    config.DeePC.lambda_g = 1e-2;           % Slack penalty (Hankel constraint)
     
     %% ========== NOISE PARAMETERS ==========
     % Noise is added to measurement data during data collection
