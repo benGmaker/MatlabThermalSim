@@ -52,6 +52,11 @@ function [ctrl_step, ctrl_init, meta] = deepc_policy_factory(config)
         U_f(:,i) = u_data(i+T_ini:i+T_ini+N-1);
         Y_f(:,i) = y_data(i+T_ini:i+T_ini+N-1);
     end
+    
+    check_pe_condition(U_p, struct('name','U_p'));
+    check_pe_condition(Y_p, struct('name','Y_p'));
+    check_pe_condition(U_f, struct('name','U_f'));
+    check_pe_condition(Y_f, struct('name','Y_f'));
 
     % Init/step
     ctrl_init = @() struct( ...
