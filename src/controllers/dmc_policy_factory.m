@@ -14,7 +14,7 @@ function [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config)
     % DMC params
     P = config.predictive.P;
     M = config.predictive.M;
-    N = config.predictive.P;
+    N = config.DMC.N; 
 
     Q_weight = config.predictive.Q_weight;
     R_weight = config.predictive.R_weight;

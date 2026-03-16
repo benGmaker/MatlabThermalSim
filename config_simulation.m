@@ -13,8 +13,8 @@ function config = config_simulation()
     config.run_system_id = false;
     config.run_MPC = false;
     config.run_SPC = true;
-    config.run_DMC = false;
-    config.run_DeePC = true;
+    config.run_DMC = true;
+    config.run_DeePC = false;
     config.run_closed_loop_comparison = true;
 
     % Predictive 
@@ -32,13 +32,14 @@ function config = config_simulation()
     
     %% ========== CONTROL CONSTRAINTS (SHARED ACROSS ALL CONTROLLERS) ==========
 
-    % Hard constraints
+    % Hard constraints (confines policy input to bounds, not setting solver bounds)
+    config.hard_input_constraint = false;
     config.hard_constraint.u_min = 0;
     config.hard_constraint.u_max = 100;
 
     % Solver constraint
-    config.constraints.u_min = -inf;           % Min heater power [%]
-    config.constraints.u_max = inf;         % Max heater power [%]
+    config.constraints.u_min = 0;           % Min heater power [%]
+    config.constraints.u_max = 100;         % Max heater power [%]
 
     % y constraints 
     config.constraints.enable_y_constraints = false; %(fully disable by setting to inf and setting to false) 
@@ -72,7 +73,7 @@ function config = config_simulation()
     config.SPC.M = 1;  % Past samples data length
     
     %% ========== DMC PARAMETERS ==========
-    
+    config.DMC.N = 550; % model horizon / settling time (max is data length) 
     
     %% ========== DeePC PARAMETERS ==========
     config.DeePC.T_ini = 5;                 % Past horizon [samples]
