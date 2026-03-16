@@ -11,10 +11,10 @@ function config = config_simulation()
     % Closed loop
     config.run_collect_data = false;
     config.run_system_id = false;
-    config.run_MPC = false;
+    config.run_MPC = true;
     config.run_SPC = true;
     config.run_DMC = true;
-    config.run_DeePC = false;
+    config.run_DeePC = true;
     config.run_closed_loop_comparison = true;
 
     % Predictive 
@@ -76,12 +76,11 @@ function config = config_simulation()
     config.DMC.N = 550; % model horizon / settling time (max is data length) 
     
     %% ========== DeePC PARAMETERS ==========
-    config.DeePC.T_ini = 5;                 % Past horizon [samples]
+    config.DeePC.T_ini = 1;                 % Past horizon [samples]
     config.DeePC.deterministic = true;  
     config.DeePC.slack_mode = 'g'; % g or g+u
     config.DeePC.lambda_y = 0;           % Slack penalty (output constraint)
-    config.DeePC.lambda_g = 0.1;           % Slack penalty (Hankel constraint)
-    config.DeePC.lambda_sg = 1e-8;           % Slack penalty (Hankel constraint)
+    config.DeePC.lambda_g = 1e-4;           % Slack penalty (Hankel constraint)
     
     %% ========== NOISE PARAMETERS ==========
     % Noise is added to measurement data during data collection
