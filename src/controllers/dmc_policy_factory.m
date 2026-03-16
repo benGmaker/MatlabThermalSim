@@ -48,8 +48,11 @@ function [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config)
         'y_mean', y_mean, ...
         'P', P, ...
         'M', M, ...
+        'N', N, ...
+        'S', S(:), ...
         'K_dmc', K_dmc, ...
-        'u_prev', 0 ...
+        'u_prev', u_mean, ...          % important: start at mean (absolute)
+        'du_hist', zeros(N-1, 1) ...   % Δu(k-1), Δu(k-2), ...
     );
 
     % ---- outputs expected by run_closed_loop_dmc
@@ -69,34 +72,82 @@ function [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config)
     meta.N = N;
 
     function [u_next, ctrl] = step(k, y_k, r_traj_abs, ctrl, config)
-        % Deviation variables
-        y_dev = y_k - ctrl.y_mean;
+    % --- Convenience
+    P = ctrl.P;
+    M = ctrl.M;
+    N = ctrl.N;
+    S = ctrl.S(:);
 
-        % Need P-long preview; if provided shorter, pad
-        P_local = ctrl.P;
-        sp = r_traj_abs(:) - ctrl.y_mean;
-        if numel(sp) < P_local
-            sp(end+1:P_local,1) = sp(end);
-        elseif numel(sp) > P_local
-            sp = sp(1:P_local);
-        end
+    % --- Deviation variables
+    y_dev = y_k - ctrl.y_mean;
 
-        y_free = y_dev * ones(P_local,1);
-        e = sp - y_free;
-
-        du_seq = ctrl.K_dmc * e;
-        du0 = du_seq(1);
-
-        % Rate limit
-        du0 = max(-du_max, min(du_max, du0));
-
-        % Apply move in deviation, convert to absolute, saturate
-        u_dev_prev = ctrl.u_prev - ctrl.u_mean;
-        u_dev_new = u_dev_prev + du0;
-        u_next = u_dev_new + ctrl.u_mean;
-
-        u_next = max(u_min, min(u_max, u_next));
-        ctrl.u_prev = u_next;
+    % --- Build P-long setpoint preview in deviation
+    sp = r_traj_abs(:) - ctrl.y_mean;
+    if numel(sp) < P
+        sp(end+1:P,1) = sp(end);
+    elseif numel(sp) > P
+        sp = sp(1:P);
     end
+
+    % ==========================================================
+    % 1) Free response from past Δu history 
+    %
+    % We predict future output increments due to past moves:
+    %   y_free(i) = y(k) + sum_{j=1}^{N-1} (S(i+j) - S(j)) * du_hist(j)
+    %
+    % Where du_hist(1)=Δu(k-1), du_hist(2)=Δu(k-2), ...
+    % ==========================================================
+    du_hist = ctrl.du_hist;                % (N-1)x1
+    y_free = y_dev * ones(P,1);            % base: hold at current y_dev
+
+    for i = 1:P
+        acc = 0.0;
+        for j = 1:(N-1)
+            % Indices into step response, with saturation at N
+            s_ij = S(min(N, i + j));       % S(i+j)
+            s_j  = S(j);                   % S(j)
+            acc = acc + (s_ij - s_j) * du_hist(j);
+        end
+        y_free(i) = y_free(i) + acc;
+    end
+
+    % --- Error for optimizer
+    e = sp - y_free;
+
+    % ==========================================================
+    % 2) Unconstrained DMC move (same K you already compute)
+    % ==========================================================
+    du_seq = ctrl.K_dmc * e;
+    du0_cmd = du_seq(1);
+
+    % --- Rate limit on Δu
+    du_max = config.constraints.du_max;
+    du0_cmd = max(-du_max, min(du_max, du0_cmd));
+
+    % ==========================================================
+    % 3) Apply move, then saturate u, then compute APPLIED Δu
+    % ==========================================================
+    u_min = config.constraints.u_min;
+    u_max = config.constraints.u_max;
+
+    u_prev = ctrl.u_prev;                 % absolute
+    u_cmd  = u_prev + du0_cmd;            % absolute command
+
+    u_next = max(u_min, min(u_max, u_cmd));
+
+    % Actual applied increment (after saturation)
+    du0_applied = u_next - u_prev;
+
+    % --- Update stored previous u
+    ctrl.u_prev = u_next;
+
+    % ==========================================================
+    % 4) Update Δu history with the APPLIED move
+    %    du_hist(1)=Δu(k), du_hist(2)=Δu(k-1), ...
+    % ==========================================================
+    if N > 1
+        ctrl.du_hist = [du0_applied; du_hist(1:end-1)];
+    end
+end
 end
 
