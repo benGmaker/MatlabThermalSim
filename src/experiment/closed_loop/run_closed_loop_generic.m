@@ -38,7 +38,7 @@ function [results, ctrl_final] = run_closed_loop_generic(config, controller, con
         [u_next, ctrl] = controller(k, y(k), r_traj, ctrl, config);
 
         % Hard input bounds
-        u_next = max(config.hard_constraint.u_min, min(config.hard_constraint.u_max, u_next));
+        %u_next = max(config.hard_constraint.u_min, min(config.hard_constraint.u_max, u_next));
         u(k+1) = u_next;
 
         params.T0 = y(k);

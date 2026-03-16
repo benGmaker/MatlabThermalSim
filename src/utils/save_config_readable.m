@@ -83,7 +83,6 @@ function save_config_readable(config, filename)
     fprintf(fid, 'Past Horizon (T_ini):         %d samples\n', config.DeePC.T_ini);
     fprintf(fid, 'Slack Penalty Output (lambda_y): %g\n', config.DeePC.lambda_y);
     fprintf(fid, 'Slack Penalty Hankel (lambda_g): %g\n', config.DeePC.lambda_g);
-    fprintf(fid, 'Input Regularization (lambda_u): %g\n', config.DeePC.lambda_u);
     fprintf(fid, '\n');
 
     % ============================ NOISE ==================================

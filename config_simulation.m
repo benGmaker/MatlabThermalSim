@@ -40,18 +40,18 @@ function config = config_simulation()
     config.constraints.u_min = -inf;           % Min heater power [%]
     config.constraints.u_max = inf;         % Max heater power [%]
 
-    % y constraints
-    config.constraints.enable_y_constraints = false; 
+    % y constraints 
+    config.constraints.enable_y_constraints = false; %(fully disable by setting to inf and setting to false) 
     config.constraints.y_min = -inf;
     config.constraints.y_max = inf;
 
     % Du constraints
-    config.constraints.enable_du_constraints = false; 
-    config.constraints.du_max = inf;         % Max rate of change [%/sample]
+    config.constraints.enable_du_constraints = false; %(fully disable by setting to inf and setting to false) 
     config.constraints.du_min = -inf;
-    
-    % smoothing (penalty). Start here:
-    config.constraints.enable_du_penalty = false;
+    config.constraints.du_max = inf;         % Max rate of change [%/sample]
+
+    % Smoothing (penalty). Start here:
+    config.constraints.enable_du_penalty = false; %(fully disable by setting to 0 and setting to false) 
     config.constraints.du_weight = 0;   
 
     %% ========== GLOBAL PREDICTIVE CONTROL PARAMETERS ==========
@@ -75,10 +75,10 @@ function config = config_simulation()
     
     
     %% ========== DeePC PARAMETERS ==========
-    config.DeePC.T_ini = 1;                 % Past horizon [samples]
+    config.DeePC.T_ini = 5;                 % Past horizon [samples]
+    config.DeePC.deterministic = true;  
     config.DeePC.lambda_y = 0;           % Slack penalty (output constraint)
     config.DeePC.lambda_g = 0;           % Slack penalty (Hankel constraint)
-    config.DeePC.lambda_u = 0;             % Input regularization
     
     %% ========== NOISE PARAMETERS ==========
     % Noise is added to measurement data during data collection

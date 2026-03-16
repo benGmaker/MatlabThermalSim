@@ -31,7 +31,7 @@ function DeePC_results = run_closed_loop_deepc(config)
     fprintf('n_failures = %d\n', ctrl_final.n_failures);
 
     DeePC_results.params = struct('T_ini', config.DeePC.T_ini, 'N', config.predictive.P, ...
-        'lambda_y', config.DeePC.lambda_y, 'lambda_g', config.DeePC.lambda_g, 'lambda_u', config.DeePC.lambda_u);
+        'lambda_y', config.DeePC.lambda_y, 'lambda_g', config.DeePC.lambda_g);
 
     DeePC_results.config = config;
 
