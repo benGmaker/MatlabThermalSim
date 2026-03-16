@@ -14,7 +14,7 @@ function config = config_simulation()
     config.run_MPC = false;
     config.run_SPC = true;
     config.run_DMC = false;
-    config.run_DeePC = false;
+    config.run_DeePC = true;
     config.run_closed_loop_comparison = true;
 
     % Predictive 
@@ -36,6 +36,8 @@ function config = config_simulation()
 
     % y constraints
     config.constraints.enable_y_constraints = false; 
+    config.constraints.y_min = -inf;
+    config.constraints.y_max = inf;
 
     % Du constraints
     config.constraints.enable_du_constraints = false; 
@@ -44,27 +46,30 @@ function config = config_simulation()
     
     % smoothing (penalty). Start here:
     config.constraints.enable_du_penalty = false;
-    config.constraints.du_weight = inf;   
+    config.constraints.du_weight = 0;   
 
     %% ========== GLOBAL PREDICTIVE CONTROL PARAMETERS ==========
-    config.predictive.P = 20; % Prediction horizon [samples]
+    config.predictive.P = 20;                      % Prediction horizon [samples]
     config.predictive.M = 20;                      % Control horizon [samples]
     config.predictive.Q_weight = 10;                % Output tracking weight
-    config.predictive.R_weight = 0.001;            % Input change penalty
-    config.dataset_choice = 'step';  % options: step, multisine, impulse, doublet 
+    config.predictive.R_weight = 0.01;            % Input change penalty
+    config.dataset_choice = 'doublet';  % options: step, multisine, impulse, doublet 
+
     % DMC always uses step response data 
     %% ========== MPC PARAMETERS ==========
     config.enable_integrator = false;       % Offset free MPC
 
     %% ========== SPC (Subspace Predictive Control) PARAMETERS ==========
-    config.SPC.ident.nx = 2;
+    config.SPC.ident.nx = 2; % Order of the system
 
+    % Hankel Block size 
+    config.SPC.M = 1;  % Past samples data length
     
     %% ========== DMC PARAMETERS ==========
     
     
     %% ========== DeePC PARAMETERS ==========
-    config.DeePC.T_ini = 5;                 % Past horizon [samples]
+    config.DeePC.T_ini = 1;                 % Past horizon [samples]
     config.DeePC.lambda_y = 1000;           % Slack penalty (output constraint)
     config.DeePC.lambda_g = 1000;           % Slack penalty (Hankel constraint)
     config.DeePC.lambda_u = 0.1;             % Input regularization

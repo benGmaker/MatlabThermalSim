@@ -23,30 +23,25 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
     Qw = config.predictive.Q_weight;
     Rw = config.predictive.R_weight;
 
+    % Creating deviation constraints values 
     umin_dev = config.constraints.u_min - u_mean;
     umax_dev = config.constraints.u_max - u_mean;
 
-    % Position constraints (optional) 
-    if isfield(config.constraints,'y_min') && isfield(config.constraints,'y_max')
-        ymin_dev = config.constraints.y_min - y_mean;
-        ymax_dev = config.constraints.y_max - y_mean;
-        enable_y_constraints = true;
-    else
-        ymin_dev = -Inf;
-        ymax_dev =  Inf;
-        enable_y_constraints = false;
-    end
+    ymin_dev = config.constraints.y_min - y_mean;
+    ymax_dev = config.constraints.y_max - y_mean;
 
     % --- SPC identification hyperparameters ---
     nx = config.SPC.ident.nx;
+    M = config.SPC.M;
     if isfield(config.SPC, 'i')
         i = config.SPC.i;
     else
         i = max(2*nx, P); % safe-ish default; must satisfy i >= P
     end
+    
 
     % Fit SPC lifted predictor directly from data
-    spc = spc_fit_lifted_predictor_siso(u_id, y_id, i, nx, P);
+    spc = spc_fit_lifted_predictor_siso(u_id, y_id, M, nx, P);
 
     % Build quadratic program
     qp = qp_spc_lifted_siso(spc.F, spc.Phi, P, Qw, Rw, config);
@@ -59,7 +54,6 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
     meta.i = i;
     meta.P = P;
     meta.Qw = Qw; meta.Rw = Rw;
-    meta.enable_y_constraints = enable_y_constraints;
 
     % Keep for debugging/analysis
     meta.spc = spc;
@@ -83,9 +77,9 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
 
         ctrl.u_prev_dev = 0;
         % history buffers for past window (length i)
-        ctrl.i = i;
-        ctrl.u_hist = zeros(i,1);
-        ctrl.y_hist = zeros(i,1);
+        ctrl.M = M;
+        ctrl.u_hist = zeros(M,1);
+        ctrl.y_hist = zeros(M,1);
 
         % latent state
         ctrl.x = zeros(nx,1);

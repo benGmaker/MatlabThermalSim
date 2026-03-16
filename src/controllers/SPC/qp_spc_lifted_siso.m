@@ -36,7 +36,7 @@ function qp = qp_spc_lifted_siso(F, Phi, P, Qw, Rw, opts)
     end
 
     if opts.constraints.enable_du_penalty
-        S = opts.du_weight * eye(P);
+        S = opts.constraints.du_weight * eye(P);
         H_du = 2*(D' * S * D);
     else
         S = zeros(P);

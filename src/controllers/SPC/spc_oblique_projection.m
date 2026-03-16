@@ -17,5 +17,5 @@ function Oi = spc_oblique_projection(Yf, Uf, Wp)
     Wp_bar = Wp * Nuf;
 
     % Project Yf_bar onto row-space(Wp_bar)
-    Oi = Yf_bar * pinv(Wp_bar) * Wp_bar;
+    Oi = Yf_bar * pinv(Wp_bar) * Wp_bar; % pinv might be numerically unstable
 end
