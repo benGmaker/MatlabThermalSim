@@ -31,8 +31,14 @@ function config = config_simulation()
     config.setpoint.values = [40, 50, 35];      % Setpoint temperatures [°C]
     
     %% ========== CONTROL CONSTRAINTS (SHARED ACROSS ALL CONTROLLERS) ==========
-    config.constraints.u_min = 0;           % Min heater power [%]
-    config.constraints.u_max = 100;         % Max heater power [%]
+
+    % Hard constraints
+    config.hard_constraint.u_min = 0;
+    config.hard_constraint.u_max = 100;
+
+    % Solver constraint
+    config.constraints.u_min = -inf;           % Min heater power [%]
+    config.constraints.u_max = inf;         % Max heater power [%]
 
     % y constraints
     config.constraints.enable_y_constraints = false; 
@@ -70,9 +76,9 @@ function config = config_simulation()
     
     %% ========== DeePC PARAMETERS ==========
     config.DeePC.T_ini = 1;                 % Past horizon [samples]
-    config.DeePC.lambda_y = 1000;           % Slack penalty (output constraint)
-    config.DeePC.lambda_g = 1000;           % Slack penalty (Hankel constraint)
-    config.DeePC.lambda_u = 0.1;             % Input regularization
+    config.DeePC.lambda_y = 0;           % Slack penalty (output constraint)
+    config.DeePC.lambda_g = 0;           % Slack penalty (Hankel constraint)
+    config.DeePC.lambda_u = 0;             % Input regularization
     
     %% ========== NOISE PARAMETERS ==========
     % Noise is added to measurement data during data collection
@@ -135,21 +141,4 @@ function config = config_simulation()
     % Optionally display configuration summary when created
     % Uncomment to enable:
     % print_config_summary(config);
-end
-
-function print_config_summary(config)
-% Print a summary of the configuration
-    fprintf('\n========== Configuration Summary ==========\n');
-    fprintf('Simulation Time: %d s\n', config.simulation.t_sim);
-    fprintf('Sampling Time: %.1f s\n', config.simulation.dt);
-    fprintf('Control Constraints: u ∈ [%d, %d]%%, Δu ≤ %d%%\n', ...
-            config.constraints.u_min, config.constraints.u_max, config.constraints.du_max);
-    fprintf('Setpoint Profile: %s °C at times %s s\n', ...
-            mat2str(config.setpoint.values), mat2str(config.setpoint.times));
-    fprintf('Noise: %s, Type: %s, SNR: %.1f dB\n', ...
-            char(config.noise.enable), config.noise.type, config.noise.SNR_dB);
-    fprintf('MPC Horizons: P=%d, M=%d\n', config.MPC.P, config.MPC.M);
-    fprintf('DMC Horizons: P=%d, M=%d, N=%d\n', config.DMC.P, config.DMC.M, config.DMC.N);
-    fprintf('DeePC Horizons: T_ini=%d, N=%d\n', config.DeePC.T_ini, config.DeePC.N);
-    fprintf('===========================================\n\n');
 end
