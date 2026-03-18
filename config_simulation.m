@@ -58,9 +58,9 @@ function config = config_simulation()
     %% ========== GLOBAL PREDICTIVE CONTROL PARAMETERS ==========
     config.predictive.P = 20;                      % Prediction horizon [samples]
     config.predictive.M = 20;                      % Control horizon [samples]
-    config.predictive.Q_weight = 10;                % Output tracking weight
-    config.predictive.R_weight = 0.01;            % Input change penalty
-    config.dataset_choice = 'doublet';  % options: step, multisine, impulse, doublet 
+    config.predictive.Q_weight = 100;                % Output tracking weight
+    config.predictive.R_weight = 0.001;            % Input change penalty
+    config.dataset_choice = 'step';  % options: step, multisine, impulse, doublet 
 
     % DMC always uses step response data 
     %% ========== MPC PARAMETERS ==========
@@ -80,7 +80,7 @@ function config = config_simulation()
     config.DeePC.deterministic = true;  
     config.DeePC.slack_mode = 'g'; % g or g+u
     config.DeePC.lambda_y = 0;           % Slack penalty (output constraint)
-    config.DeePC.lambda_g = 1e-2;           % Slack penalty (Hankel constraint)
+    config.DeePC.lambda_g = 0;           % Slack penalty (Hankel constraint)
     
     %% ========== NOISE PARAMETERS ==========
     % Noise is added to measurement data during data collection

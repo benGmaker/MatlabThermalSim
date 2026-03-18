@@ -1,12 +1,5 @@
 function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
-%SPC_POLICY_FACTORY SPC (data-driven lifted predictor) + nominal MPC QP.
-%
-% This implementation follows the report SPC narrative:
-%   - Build Hankel matrices Up,Yp,Uf,Yf
-%   - Oblique projection O_i = Yf /_{Uf} Wp
-%   - SVD -> latent state sequence Xp
-%   - Fit lifted predictor Y = F*x + Phi*U directly from data
-%   - Solve the same condensed MPC QP, but with (F,Phi) from data (no A,B,C,D)
+%SPC_POLICY_FACTORY SPC (DeePC-equivalent predictor) + nominal MPC QP.
 
     % loading and centering data
     ds = load_predictive_data(config);
@@ -30,32 +23,22 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
     ymin_dev = config.constraints.y_min - y_mean;
     ymax_dev = config.constraints.y_max - y_mean;
 
-    % --- SPC identification hyperparameters ---
-    nx = config.SPC.ident.nx;
-    M = config.SPC.M;
-    if isfield(config.SPC, 'i')
-        i = config.SPC.i;
-    else
-        i = max(2*nx, P); % safe-ish default; must satisfy i >= P
-    end
-    
+    % --- identification hyperparameters ---
+    M  = config.SPC.M;         % past window length (Tini)
 
-    % Fit SPC lifted predictor directly from data
-    spc = spc_fit_lifted_predictor_siso(u_id, y_id, M, nx, P);
+    % Fit DeePC-equivalent SPC predictor from data
+    spc = spc_fit_lifted_predictor_siso(u_id, y_id, M, P);
 
-    % Build quadratic program
+    % Build QP (unchanged)
     qp = qp_spc_lifted_siso(spc.F, spc.Phi, P, Qw, Rw, config);
 
     meta = struct();
     meta.dt = dt;
     meta.u_mean = u_mean;
     meta.y_mean = y_mean;
-    meta.nx = nx;
-    meta.i = i;
+    meta.M = M;
     meta.P = P;
     meta.Qw = Qw; meta.Rw = Rw;
-
-    % Keep for debugging/analysis
     meta.spc = spc;
 
     ctrl_init = @init_state;
@@ -76,13 +59,14 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
         ctrl.ymax_dev = ymax_dev;
 
         ctrl.u_prev_dev = 0;
-        % history buffers for past window (length i)
+
+        % history buffers for past window (length M)
         ctrl.M = M;
         ctrl.u_hist = zeros(M,1);
         ctrl.y_hist = zeros(M,1);
 
-        % latent state
-        ctrl.x = zeros(nx,1);
+        % "x" is now [u_ini; y_ini] => dimension 2M
+        ctrl.x = zeros(2*M, 1);
     end
 
     function [u_next_abs, ctrl] = step(~, y_k_abs, r_traj_abs, ctrl, config)
@@ -94,13 +78,14 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
         ctrl.u_hist = [ctrl.u_hist(2:end); ctrl.u_prev_dev];
         ctrl.y_hist = [ctrl.y_hist(2:end); y_dev];
 
-        % estimate latent state from past window: x = Kx * [u_past; y_past]
+        % x = [u_ini; y_ini] (Kx is identity but keep the pattern)
         w = [ctrl.u_hist; ctrl.y_hist];
         ctrl.x = ctrl.spc.Kx * w;
 
         % solve lifted QP
         [u0_dev, info] = ctrl.qp.solve(ctrl.x, r_dev, ctrl.u_prev_dev, ...
             ctrl.umin_dev, ctrl.umax_dev, ctrl.ymin_dev, ctrl.ymax_dev);
+
         % apply first input (deviation) with saturation
         u_next_dev = max(ctrl.umin_dev, min(ctrl.umax_dev, u0_dev));
 
@@ -110,5 +95,6 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
         % back to absolute + saturate
         u_next_abs = u_next_dev + ctrl.u_mean;
         u_next_abs = max(config.constraints.u_min, min(config.constraints.u_max, u_next_abs));
+
     end
 end

@@ -1,40 +1,42 @@
-function spc = spc_fit_lifted_predictor_siso(u_id, y_id, M, nx, P)
-%SPC_FIT_LIFTED_PREDICTOR_SISO Fit SPC lifted predictor directly from data.
+function spc = spc_fit_lifted_predictor_siso(u_id, y_id, M, P)
+%SPC_FIT_LIFTED_PREDICTOR_SISO Fit DeePC-equivalent SPC multi-step predictor (SISO).
 %
-% Past horizon:  M
-% Future horizon: P (same as MPC horizon)
+% Builds the SPC predictor:
+%   Yf = P1*u_ini + P2*y_ini + Gamma*Uf
 %
-% Outputs:
-%   Kx   (nx x 2M)
-%   F    (P x nx)
-%   Phi  (P x P)
+% and maps it to internal lifted form used by qp_spc_lifted_siso:
+%   Y  = F*x + Phi*U
+% where:
+%   x = [u_ini; y_ini]
+%   F = [P1 P2]
+%   Phi = Gamma
+    u_id = u_id(:);
+    y_id = y_id(:);
 
+    % Hankel blocks (SISO):
+    % Up,Yp: (M x j)
+    % Uf,Yf: (P x j)
     [Up, Yp, Uf, Yf] = spc_hankel_past_future_siso(u_id, y_id, M, P);
-    Wp = [Up; Yp];  % (2M) x j
 
-    % Oblique projection and SVD
-    Oi = spc_oblique_projection(Yf, Uf, Wp);   % Yf (P x j), Uf (P x j)
-    [Gamma_i_hat, Xp_hat, sv] = spc_estimate_gammax(Oi, nx);
+    % Regression: Theta = Yf * pinv([Up;Yp;Uf]) = [P1 P2 Gamma]
+    Z = [Up; Yp; Uf];           % (2M + P) x j
+    Theta = Yf * pinv(Z);       % (P x (2M + P))
 
-    % State regression: Xp_hat ≈ Kx * Wp
-    Kx = Xp_hat * pinv(Wp);                   % nx x (2M)
-
-    % Predictor regression: Yf ≈ Fi*Xp_hat + Phii*Uf
-    Phi_reg = [Xp_hat; Uf];                   % (nx + P) x j
-    Mreg = Yf * pinv(Phi_reg);                % P x (nx + P)
-
-    F   = Mreg(:, 1:nx);                      % P x nx
-    Phi = Mreg(:, nx+1:end);                  % P x P
+    P1 = Theta(:, 1:M);                 % P x M
+    P2 = Theta(:, M+1:2*M);             % P x M
+    Gamma = Theta(:, 2*M+1:end);        % P x P
 
     spc = struct();
-    spc.M = M;
-    spc.nx = nx;
-    spc.P = P;
+    spc.M  = M;  
+    spc.P  = P;
 
-    spc.Kx = Kx;
-    spc.F = F;
-    spc.Phi = Phi;
+    % Map to your QP form: Y = F*x + Phi*U, x=[u_ini;y_ini]
+    spc.F = [P1, P2];     % P x (2M)
+    spc.Phi = Gamma;      % P x P
 
-    spc.Gamma_i_hat = Gamma_i_hat;
-    spc.sv = sv;
+    % "State"/initialization map: x = Kx*[u_ini;y_ini]
+    spc.Kx = eye(2*M);    % (2M x 2M)
+
+    % Diagnostics
+    spc.Theta = Theta;
 end
