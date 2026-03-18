@@ -12,9 +12,9 @@ function config = config_simulation()
     config.run_collect_data = false;
     config.run_system_id = false;
     config.run_MPC = true;
-    config.run_SPC = true;
+    config.run_SPC = false;
     config.run_DMC = true;
-    config.run_DeePC = true;
+    config.run_DeePC = false;
     config.run_closed_loop_comparison = true;
 
     % Predictive 
@@ -34,8 +34,8 @@ function config = config_simulation()
 
     % Hard constraints (confines policy input to bounds, not setting solver bounds)
     config.hard_input_constraint = false;
-    config.hard_constraint.u_min = 0;
-    config.hard_constraint.u_max = 100;
+    config.hard_constraint.u_min = -inf;
+    config.hard_constraint.u_max = inf;
 
     % Solver constraint
     config.constraints.u_min = 0;           % Min heater power [%]
@@ -81,6 +81,13 @@ function config = config_simulation()
     config.DeePC.slack_mode = 'g'; % g or g+u
     config.DeePC.lambda_y = 0;           % Slack penalty (output constraint)
     config.DeePC.lambda_g = 0;           % Slack penalty (Hankel constraint)
+
+    config.DeePC.enable_scaling = true; % scaling to improve numerical stability
+    config.DeePC.scaling_eps = 1e-12;         % double
+
+    config.DeePC.soft_uini = false;
+    config.DeePC.lambda_uini = 0;
+
     
     %% ========== NOISE PARAMETERS ==========
     % Noise is added to measurement data during data collection

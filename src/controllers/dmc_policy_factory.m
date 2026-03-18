@@ -72,82 +72,111 @@ function [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config)
     meta.N = N;
 
     function [u_next, ctrl] = step(k, y_k, r_traj_abs, ctrl, config)
-    % --- Convenience
-    P = ctrl.P;
-    M = ctrl.M;
-    N = ctrl.N;
-    S = ctrl.S(:);
-
-    % --- Deviation variables
-    y_dev = y_k - ctrl.y_mean;
-
-    % --- Build P-long setpoint preview in deviation
-    sp = r_traj_abs(:) - ctrl.y_mean;
-    if numel(sp) < P
-        sp(end+1:P,1) = sp(end);
-    elseif numel(sp) > P
-        sp = sp(1:P);
-    end
-
-    % ==========================================================
-    % 1) Free response from past Δu history 
-    %
-    % We predict future output increments due to past moves:
-    %   y_free(i) = y(k) + sum_{j=1}^{N-1} (S(i+j) - S(j)) * du_hist(j)
-    %
-    % Where du_hist(1)=Δu(k-1), du_hist(2)=Δu(k-2), ...
-    % ==========================================================
-    du_hist = ctrl.du_hist;                % (N-1)x1
-    y_free = y_dev * ones(P,1);            % base: hold at current y_dev
-
-    for i = 1:P
-        acc = 0.0;
-        for j = 1:(N-1)
-            % Indices into step response, with saturation at N
-            s_ij = S(min(N, i + j));       % S(i+j)
-            s_j  = S(j);                   % S(j)
-            acc = acc + (s_ij - s_j) * du_hist(j);
+        % --- Convenience
+        P = ctrl.P;
+        M = ctrl.M;
+        N = ctrl.N-1; % not using leading zero 
+        S = ctrl.S(2:end);  % not using leading zero 
+    
+        % --- Deviation variables
+        y_dev = y_k - ctrl.y_mean;
+    
+        % --- Build P-long setpoint preview in deviation
+        sp = r_traj_abs(:) - ctrl.y_mean;
+        if numel(sp) < P
+            sp(end+1:P,1) = sp(end);
+        elseif numel(sp) > P
+            sp = sp(1:P);
         end
-        y_free(i) = y_free(i) + acc;
-    end
-
-    % --- Error for optimizer
-    e = sp - y_free;
-
-    % ==========================================================
-    % 2) Unconstrained DMC move (same K you already compute)
-    % ==========================================================
-    du_seq = ctrl.K_dmc * e;
-    du0_cmd = du_seq(1);
-
-    % --- Rate limit on Δu
-    du_max = config.constraints.du_max;
-    du0_cmd = max(-du_max, min(du_max, du0_cmd));
-
-    % ==========================================================
-    % 3) Apply move, then saturate u, then compute APPLIED Δu
-    % ==========================================================
-    u_min = config.constraints.u_min;
-    u_max = config.constraints.u_max;
-
-    u_prev = ctrl.u_prev;                 % absolute
-    u_cmd  = u_prev + du0_cmd;            % absolute command
-
-    u_next = max(u_min, min(u_max, u_cmd));
-
-    % Actual applied increment (after saturation)
-    du0_applied = u_next - u_prev;
-
-    % --- Update stored previous u
-    ctrl.u_prev = u_next;
-
-    % ==========================================================
-    % 4) Update Δu history with the APPLIED move
-    %    du_hist(1)=Δu(k), du_hist(2)=Δu(k-1), ...
-    % ==========================================================
-    if N > 1
-        ctrl.du_hist = [du0_applied; du_hist(1:end-1)];
-    end
-end
+    
+        % ==========================================================
+        % 1) Free response from past Δu history 
+        %
+        % We predict future output increments due to past moves:
+        %   y_free(i) = y(k) + sum_{j=1}^{N-1} (S(i+j) - S(j)) * du_hist(j)
+        %
+        % Where du_hist(1)=Δu(k-1), du_hist(2)=Δu(k-2), ...
+        % ==========================================================
+        du_hist = ctrl.du_hist;                % (N-1)x1
+        y_free = y_dev * ones(P,1);            % base: hold at current y_dev
+    
+        for i = 1:P
+            acc = 0.0;
+            for j = 1:(N-1)
+                % Indices into step response, with saturation at N
+                s_ij = S(min(N, i + j));       % S(i+j)
+                s_j  = S(j);                   % S(j)
+                acc = acc + (s_ij - s_j) * du_hist(j);
+            end
+            y_free(i) = y_free(i) + acc;
+        end
+    
+        % --- Error for optimizer
+        e = sp - y_free;
+    
+        % ==========================================================
+        % 2) Constrained DMC QP in terms of ΔU (size M)
+        %    Y = y_free + G*ΔU
+        % ==========================================================
+        Q_mat = Q_weight * eye(P);
+        R_mat = R_weight * eye(M);
+        
+        H = 2*(G' * Q_mat * G + R_mat);
+        H = (H + H')/2;
+        
+        f = 2*(G' * Q_mat * (y_free - sp));  % note sign: minimize ||(y_free+Gdu)-sp||^2
+        
+        % ---- Δu box constraints
+        du_max = config.constraints.du_max;
+        lb = -du_max * ones(M,1);
+        ub =  du_max * ones(M,1);
+        
+        % ---- u bounds across the horizon:
+        % u_pred = u_prev + Ttri * ΔU, with Ttri lower-triangular of ones
+        Ttri = tril(ones(M));                  % MxM
+        u_prev = ctrl.u_prev;                  % absolute
+        
+        u_min = config.constraints.u_min;
+        u_max = config.constraints.u_max;
+        
+        Aineq = [ Ttri; -Ttri];
+        bineq = [ (u_max - u_prev)*ones(M,1);
+                  -(u_min - u_prev)*ones(M,1) ];
+        
+        options = optimoptions('quadprog', ...
+            'Display','off', ...
+            'MaxIterations', 200, ...
+            'ConstraintTolerance', 1e-8, ...
+            'OptimalityTolerance', 1e-8);
+        
+        info = struct();
+        [du_opt, ~, exitflag, output] = quadprog(H, f, Aineq, bineq, [], [], lb, ub, [], options);
+        info.exitflag = exitflag;
+        info.output = output;
+        
+        if exitflag > 0 && ~isempty(du_opt)
+            du0_applied = du_opt(1);
+        else
+            % safe fallback: hold
+            du0_applied = 0;
+        end
+        
+        % ==========================================================
+        % 3) Apply move and saturate (should already satisfy bounds)
+        % ==========================================================
+        u_cmd  = u_prev + du0_applied;
+        u_next = max(u_min, min(u_max, u_cmd));  % guard against numerical tolerance
+        
+        ctrl.u_prev = u_next;
+        
+        % ==========================================================
+        % 4) Update Δu history with APPLIED Δu (for y_free)
+        % ==========================================================
+        if N > 1
+            ctrl.du_hist = [du0_applied; ctrl.du_hist(1:end-1)];
+        end
+        
+        ctrl.last_qp = info;
+            end
 end
 
