@@ -69,7 +69,7 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
         ctrl.x = zeros(2*M, 1);
     end
 
-    function [u_next_abs, ctrl] = step(~, y_k_abs, r_traj_abs, ctrl, config)
+    function [u_next_abs, ctrl] = step(k, y_k_abs, r_traj_abs, ctrl, config)
         % deviation signals
         y_dev = y_k_abs - ctrl.y_mean;
         r_dev = r_traj_abs(:) - ctrl.y_mean;

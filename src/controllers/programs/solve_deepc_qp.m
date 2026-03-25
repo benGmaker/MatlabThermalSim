@@ -14,7 +14,6 @@ function [u_opt, status, dbg] = solve_deepc_qp(U_p, Y_p, U_f, Y_f, u_ini, y_ini,
  % ---------------- Config ----------------
     % You must provide these fields in config.DeePC 
     slack_mode            = string(config.DeePC.slack_mode);
-
     soft_uini             = logical(config.DeePC.soft_uini);
     lambda_uini           = config.DeePC.lambda_uini;
 

@@ -55,7 +55,14 @@ function system_identification(config)
     n_val = round(validation_fraction * n_samples);
     n_est = n_samples - n_val;
     
-    data_est = data_full(1:n_est);
+    % Removing initial step from the data to fit 
+    if config.dataset_choice=="step"
+        idx_begin = config.data_collection.step_delay - 1;
+    else
+        idx_begin = 1;
+    end
+
+    data_est = data_full(idx_begin:n_est);
     data_val = data_full(n_est+1:end);
     
     fprintf('  Estimation samples: %d\n', n_est);

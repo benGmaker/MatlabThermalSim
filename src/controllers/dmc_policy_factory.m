@@ -75,8 +75,8 @@ function [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config)
         % --- Convenience
         P = ctrl.P;
         M = ctrl.M;
-        N = ctrl.N-1; % not using leading zero 
-        S = ctrl.S(2:end);  % not using leading zero 
+        N = ctrl.N-config.data_collection.step_delay; % not using leading zero 
+        S = ctrl.S(config.data_collection.step_delay:end);  % not using leading zero 
     
         % --- Deviation variables
         y_dev = y_k - ctrl.y_mean;

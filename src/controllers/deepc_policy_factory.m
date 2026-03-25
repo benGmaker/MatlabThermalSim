@@ -113,7 +113,7 @@ function [ctrl_step, ctrl_init, meta] = deepc_policy_factory(config)
         elseif numel(r) > ctrl.N
             r = r(1:ctrl.N);
         end
-
+        
         % Solve DeePC QP (returns deviation u sequence)
         [u_opt, status] = solve_deepc_qp( ...
             ctrl.U_p, ctrl.Y_p, ctrl.U_f, ctrl.Y_f, ...

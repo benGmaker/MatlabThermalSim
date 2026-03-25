@@ -89,6 +89,7 @@ function qp = qp_spc_lifted_siso(F, Phi, P, Qw, Rw, opts)
         % Final Hessian
         H = H_base + H_du;
         H = (H + H')/2;
+        H = H + 1e-9*eye(P);
 
         % ---- bounds on U ----
         lb = umin_dev * ones(P,1);
@@ -144,5 +145,6 @@ function qp = qp_spc_lifted_siso(F, Phi, P, Qw, Rw, opts)
             info.error_stack = ME.stack;
             rethrow(ME);
         end
+
     end
 end
