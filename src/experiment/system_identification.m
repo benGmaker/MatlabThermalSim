@@ -21,16 +21,16 @@ function system_identification(config)
     dataset_choice = config.dataset_choice;
     n_poles = config.system_id.n_poles;
     n_zeros = config.system_id.n_zeros;
-    validation_fraction = config.system_id.validation_fraction;
     
     fprintf('Identification Parameters:\n');
     fprintf('  Dataset: %s\n', dataset_choice);
     fprintf('  Model order: %d poles, %d zeros\n', n_poles, n_zeros);
-    fprintf('  Validation fraction: %.1f%%\n', validation_fraction * 100);
     fprintf('\n');
     
     %% ========== LOAD DATA ==========
     exp_data = load_predictive_data(config);
+    val_cfg.dataset_choice = "multisine2";
+    val_data = load_predictive_data(val_cfg);
     
     %% ========== PREPARE DATA ==========
     t = exp_data.t;
@@ -54,23 +54,15 @@ function system_identification(config)
     % Create iddata object
     data_full = iddata(y_centered, u_centered, dt);
     
-    % Split into estimation and validation
-    n_samples = length(t);
-    n_val = round(validation_fraction * n_samples);
-    n_est = n_samples - n_val;
-    
     % Removing initial step from the data to fit 
     if config.dataset_choice=="step"
-        idx_begin = config.data_collection.step_delay + 1;
+        idx_begin = config.data_collection.step_delay - 1;
     else
         idx_begin = 1;
     end
 
-    data_est = data_full(idx_begin:n_est);
-    data_val = data_full(n_est+1:end);
-    
-    fprintf('  Estimation samples: %d\n', n_est);
-    fprintf('  Validation samples: %d\n\n', n_val);
+    data_est = data_full(idx_begin:end);
+    data_val = iddata(val_data.T, val_data.Q, val_data.dt);
     
     %% ========== TRANSFER FUNCTION ESTIMATION ==========
     fprintf('Estimating transfer function model...\n');
