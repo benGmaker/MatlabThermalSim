@@ -7,12 +7,13 @@ function results = run_offline_prediction_multisine_generic(config, predictor_st
 %
 % Predicts y(k+1) from measured y(k), u(k). Compares y_hat vs measured y.
 
-    if nargin < 1 || isempty(config)
-        config = config_simulation();
-    end
+    config = config_simulation();
+    config.dataset_choice = "multisine2"; % Hard set to different dataset
     if nargin < 3 || isempty(predictor_init)
         predictor_init = @() struct();
     end
+
+
 
     ds = load_predictive_data(config);
     u_meas = ds.Q(:);   % absolute

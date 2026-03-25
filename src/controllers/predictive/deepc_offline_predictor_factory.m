@@ -24,7 +24,7 @@ function [predictor_step, predictor_init, meta] = deepc_offline_predictor_factor
     % Regularization (use existing config terms; interpret as ridge for numerical stability)
     lambda_g = config.DeePC.lambda_g;  % used here as ridge on g
     lambda_y = config.DeePC.lambda_y;  % slack weight on past y
-    lambda_u = config.DeePC.lambda_u;  % slack weight on past u
+    lambda_u = lambda_y;
 
     T = T_ini + N;
     n_cols = L - T + 1;

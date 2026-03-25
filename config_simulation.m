@@ -9,12 +9,12 @@ function config = config_simulation()
 
     %%  ========== RUN CONFIGURATION ==========
     % Closed loop
-    config.run_collect_data = false;
-    config.run_system_id = false;
+    config.run_collect_data = true;
+    config.run_system_id = true;
     config.run_MPC = true;
-    config.run_SPC = false;
+    config.run_SPC = true;
     config.run_DMC = true;
-    config.run_DeePC = false;
+    config.run_DeePC = true;
     config.run_closed_loop_comparison = true;
 
     % Predictive 
@@ -60,7 +60,7 @@ function config = config_simulation()
     config.predictive.M = 20;                      % Control horizon [samples]
     config.predictive.Q_weight = 100;                % Output tracking weight
     config.predictive.R_weight = 0.001;            % Input change penalty
-    config.dataset_choice = 'doublet';  % options: step, multisine, impulse, doublet 
+    config.dataset_choice = 'step';  % options: step, multisine, impulse, doublet 
 
     % DMC always uses step response data 
     %% ========== MPC PARAMETERS ==========
@@ -77,7 +77,7 @@ function config = config_simulation()
     
     %% ========== DeePC PARAMETERS ==========
     config.DeePC.T_ini = 1;                 % Past horizon [samples]
-    config.DeePC.deterministic = true;  
+    config.DeePC.deterministic = false;  
     config.DeePC.slack_mode = 'g'; % g or g+u
     config.DeePC.lambda_y = 0;           % Slack penalty (output constraint)
     config.DeePC.lambda_g = 0;           % Slack penalty (Hankel constraint)
@@ -117,6 +117,10 @@ function config = config_simulation()
     config.data_collection.doublet_duration = 100;  % Duration of each pulse [s]
     config.data_collection.doublet_delay = 2;      % Initial delay [s]
     
+    % Second experiment for 
+    config.data_collection.multisine2_seed = 52;
+    config.data_collection.multisine2_T0_delta = 5;
+
     %% ========== SYSTEM IDENTIFICATION PARAMETERS ==========
     config.system_id.n_poles = 2;                   % Number of poles
     config.system_id.n_zeros = 1;                   % Number of zeros

@@ -21,6 +21,9 @@ function ds = load_predictive_data(config)
         case "multisine"
             src = 'results/data/multisine_response_data.mat';
             var = 'multisine_data';
+        case "multisine2"
+            src = 'results/data/multisine_response_data_2.mat';
+            var = 'multisine2_data';            
         case "impulse"
             src = 'results/data/impulse_response_data.mat';
             var = 'impulse_data';
