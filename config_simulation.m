@@ -59,7 +59,7 @@ function config = config_simulation()
     config.predictive.P = 20;                      % Prediction horizon [samples]
     config.predictive.M = 20;                      % Control horizon [samples]
     config.predictive.Q_weight = 100;                % Output tracking weight
-    config.predictive.R_weight = 0.001;            % Input change penalty
+    config.predictive.R_weight = 0.01;            % Input change penalty
     config.dataset_choice = 'step';  % options: step, multisine, impulse, doublet 
     % DMC always uses step response data 
 
@@ -67,7 +67,7 @@ function config = config_simulation()
 
     %% ========== MPC PARAMETERS ==========
     config.enable_integrator = false;       % Offset free MPC
-    config.MPC.R_weight = 0.05;            % Input change penalty
+
     %% ========== SPC (Subspace Predictive Control) PARAMETERS ==========
     config.SPC.ident.nx = 1; % Order of the system
 
@@ -124,7 +124,7 @@ function config = config_simulation()
     config.data_collection.multisine2_T0_delta = 5;
 
     %% ========== SYSTEM IDENTIFICATION PARAMETERS ==========
-    config.system_id.n_poles = 2;                   % Number of poles
+    config.system_id.n_poles = 1;                   % Number of poles
     config.system_id.n_zeros = 1;                   % Number of zeros
     config.system_id.validation_fraction = 0.3;     % Validation data fraction
     
