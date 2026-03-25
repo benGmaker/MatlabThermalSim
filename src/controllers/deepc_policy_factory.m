@@ -13,8 +13,11 @@ function [ctrl_step, ctrl_init, meta] = deepc_policy_factory(config)
     dt = ds.params.dt;
 
     % Center data (DeePC in deviation variables)
-    u_mean = mean(u_data_abs);
-    y_mean = mean(y_data_abs);
+    if config.data.centering
+        u_mean = mean(u_data_abs); y_mean = mean(y_data_abs);
+    else
+        u_mean = 0; y_mean = 0;
+    end
 
     u_data = u_data_abs - u_mean;
     y_data = y_data_abs - y_mean;

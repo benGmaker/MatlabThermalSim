@@ -38,9 +38,13 @@ function system_identification(config)
     y = exp_data.T;
     dt = exp_data.params.dt;
     
-    % Remove mean
-    u_mean = mean(u);
-    y_mean = mean(y);
+    % Remove mean optionally 
+    if config.data.centering 
+        u_mean = mean(u); y_mean = mean(y);
+    else
+        u_mean = 0; y_mean = 0;
+    end 
+    
     u_centered = u - u_mean;
     y_centered = y - y_mean;
     

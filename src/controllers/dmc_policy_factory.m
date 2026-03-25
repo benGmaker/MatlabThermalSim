@@ -26,7 +26,8 @@ function [ctrl_step, ctrl_init, meta] = dmc_policy_factory(config)
 
     % Step response
     S = get_measured_step_response(N, dt, u_mean, y_mean);
-
+    
+    
     % Build G
     G = zeros(P, M);
     for i = 1:P

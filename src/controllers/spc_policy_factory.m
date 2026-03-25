@@ -6,8 +6,12 @@ function [ctrl_step, ctrl_init, meta] = spc_policy_factory(config)
     u_data = ds.u_data;
     y_data = ds.T;
     dt = ds.dt;
-    u_mean = mean(u_data);
-    y_mean = mean(y_data);
+    if config.data.centering 
+    u_mean = mean(u_data); y_mean = mean(y_data);
+    else
+        u_mean = 0; y_mean = 0;
+    end
+
     u_id = u_data - u_mean;
     y_id = y_data - y_mean;
 
