@@ -14,7 +14,7 @@ function [ctrl_step, ctrl_init, meta] = mpc_policy_factory(config)
     y_mean = identified_models.y_mean;
 
     % shared config
-    P  = config.MPC.P
+    P  = config.MPC.P;
     Qw = config.predictive.Q_weight;
     Rw = config.predictive.R_weight;
 

@@ -44,7 +44,7 @@ function system_identification(config)
     else
         u_mean = 0; y_mean = 0;
     end 
-    
+
     u_centered = u - u_mean;
     y_centered = y - y_mean;
     
@@ -61,7 +61,7 @@ function system_identification(config)
     
     % Removing initial step from the data to fit 
     if config.dataset_choice=="step"
-        idx_begin = config.data_collection.step_delay - 1;
+        idx_begin = config.data_collection.step_delay + 1;
     else
         idx_begin = 1;
     end

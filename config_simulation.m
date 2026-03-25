@@ -59,7 +59,7 @@ function config = config_simulation()
     config.predictive.P = 20;                      % Prediction horizon [samples]
     config.predictive.M = 20;                      % Control horizon [samples]
     config.predictive.Q_weight = 1;                % Output tracking weight
-    config.predictive.R_weight = 0.001;            % Input change penalty
+    config.predictive.R_weight = 0.0001;            % Input change penalty
     config.dataset_choice = 'step';  % options: step, multisine, impulse, doublet 
     % DMC always uses step response data 
 
@@ -107,7 +107,7 @@ function config = config_simulation()
     config.data_collection.t_final = 600;           % Experiment duration [s]
     config.data_collection.dt = 1;                  % Sampling time [s]
     config.data_collection.step_amplitude = 50;     % Step input amplitude [%]
-    config.data_collection.step_delay = 10;         % Delay before step [s]
+    config.data_collection.step_delay = 2;         % Delay before step [s]
     config.data_collection.impulse_amplitude = 100; % Impulse amplitude [%]
     config.data_collection.impulse_duration = 10;   % Impulse duration [s]
     config.data_collection.impulse_delay = 2;      % Delay before impulse [s]
