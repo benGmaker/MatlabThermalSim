@@ -10,9 +10,10 @@ function config = config_simulation()
     %% ========== Global experiment variables ==========
     % variables which are needed for the global/total experiment are moved
     % from their original places to here 
-    config.thermal_model.model_type = 'nonlinear';  % 'linear' or 'nonlinear'
-    config.noise.enable = false;                 % Enable/disable noise
+    config.thermal_model.model_type = 'linear';  % 'linear' or 'nonlinear'
+    config.noise.enable = true;                 % Enable/disable noise
     create_model_mismatch = false; 
+
 
     %%  ========== RUN CONFIGURATION ==========
     % Closed loop
@@ -40,7 +41,7 @@ function config = config_simulation()
     %% ========== SETPOINT PROFILE ==========
     % Define setpoint changes as [time, temperature] pairs
     config.setpoint.times = [0, 200, 400];      % Setpoint change times [s]
-    config.setpoint.values = [66, 72, 50];      % Setpoint temperatures [°C]    
+    config.setpoint.values = [105, 120, 140];      % Setpoint temperatures [°C]    
 
     %% ========== CONTROL CONSTRAINTS (SHARED ACROSS ALL CONTROLLERS) ==========
 
@@ -70,7 +71,7 @@ function config = config_simulation()
     %% ========== GLOBAL PREDICTIVE CONTROL PARAMETERS ==========
     config.predictive.P = 20;                      % Prediction horizon [samples]
     config.predictive.M = 20;                      % Control horizon [samples]
-    config.predictive.Q_weight = 100;                % Output tracking weight
+    config.predictive.Q_weight = 10;                % Output tracking weight
     config.predictive.R_weight = 0.01;            % Input change penalty
     config.dataset_choice = 'step';  % options: step, multisine, impulse, doublet 
     % DMC always uses step response data 
@@ -91,10 +92,11 @@ function config = config_simulation()
     
     %% ========== DeePC PARAMETERS ==========
     config.DeePC.T_ini = 1;                 % Past horizon [samples]
-    config.DeePC.deterministic = false;  
-    config.DeePC.slack_mode = 'g'; % g or g+u
-    config.DeePC.lambda_y = 0;           % Slack penalty (output constraint)
-    config.DeePC.lambda_g = 0;           % Slack penalty (Hankel constraint)
+    config.DeePC.slack_mode = 'g+u'; % g or g+u
+    if config.noise.enable
+        config.DeePC.lambda_y = 1e3;           % Slack penalty (output constraint)
+        config.DeePC.lambda_g = 1e4;           % Slack penalty (Hankel constraint)
+    end
 
     config.DeePC.enable_scaling = false; % scaling to improve numerical stability
     config.DeePC.scaling_eps = 1e-12;         % double
@@ -105,8 +107,8 @@ function config = config_simulation()
     
     %% ========== NOISE PARAMETERS ==========
     % Noise is added to measurement data during data collection
-    config.noise.type = 'uniform';             % 'gaussian', 'uniform', or 'colored'
-    config.noise.SNR_dB = 40;                   % Desired Signal-to-Noise Ratio [dB]
+    config.noise.type = 'gaussian';             % 'gaussian', 'uniform', or 'colored'
+    config.noise.SNR_dB = 30;                   % Desired Signal-to-Noise Ratio [dB]
     config.noise.seed = 66;                     % Random seed (for reproducibility)
     
     % For colored noise only
@@ -145,12 +147,12 @@ function config = config_simulation()
     config.model_mismatch.enable = create_model_mismatch;
 
     % Choose which parameters to perturb (add/remove fields as you like)
-    config.model_mismatch.delta_percent.U     = +50;   % heat transfer coefficient
-    config.model_mismatch.delta_percent.A     =  +20;    % surface area
-    config.model_mismatch.delta_percent.m     = -20;    % mass
-    config.model_mismatch.delta_percent.Cp    = +10;    % heat capacity
-    config.model_mismatch.delta_percent.alpha = -50;   % heater efficiency
-    config.model_mismatch.delta_percent.eps   =  -10;    % radiation coefficient
+    config.model_mismatch.delta_percent.U     = +20;   % heat transfer coefficient
+    config.model_mismatch.delta_percent.A     = +20;    % surface area
+    config.model_mismatch.delta_percent.m     = +20;    % mass
+    config.model_mismatch.delta_percent.Cp    = +20;    % heat capacity
+    config.model_mismatch.delta_percent.alpha = -20;   % heater efficiency
+    config.model_mismatch.delta_percent.eps   =  20;    % radiation coefficient
 
     % Optional: add small absolute offsets for temperatures (NOT percent)
     config.model_mismatch.delta_abs.Ta = 0;   % [°C]
@@ -166,8 +168,8 @@ function config = config_simulation()
 
     %% ========== THERMAL MODEL PARAMETERS ==========
     % constant parameters
-    config.thermal_model.T0 = 60;           % Initial temperature [°C]
-    config.thermal_model.Ta = 30;           % Ambient temperature [°C]
+    config.thermal_model.T0 = 100;           % Initial temperature [°C]
+    config.thermal_model.Ta = 23;           % Ambient temperature [°C]
     config.thermal_model.sigma = 5.67e-8;   % Stefan-Boltzmann constant [W/m^2-K^4]
 
     % variable parameters for mismatch
@@ -175,7 +177,7 @@ function config = config_simulation()
     thermal_model.A = 1e-3;          % Surface area [m^2]
     thermal_model.m = 4e-3;          % Mass [kg]
     thermal_model.Cp = 500;          % Heat capacity [J/kg-K]
-    thermal_model.alpha = 0.8;      % Heater efficiency
+    thermal_model.alpha = 0.03;      % Heater efficiency
     thermal_model.eps = 0.9;         % Radiation coefficient
 
 
