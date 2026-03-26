@@ -7,19 +7,31 @@ function config = config_simulation()
 %   
 % The configuration is automatically saved with results for traceability
 
+    %% ========== Global experiment variables ==========
+    % variables which are needed for the global/total experiment are moved
+    % from their original places to here 
+    config.thermal_model.model_type = 'nonlinear';  % 'linear' or 'nonlinear'
+    config.noise.enable = true;                 % Enable/disable noise
+    create_model_mismatch = false; 
+
     %%  ========== RUN CONFIGURATION ==========
     % Closed loop
-    config.run_collect_data = false;
+    config.run_collect_data = true;
     config.run_system_id = true;
     config.run_MPC = true;
-    config.run_SPC = false;
-    config.run_DMC = false;
-    config.run_DeePC = false;
+    config.run_SPC = true;
+    config.run_DMC = true;
+    config.run_DeePC = true;
     config.run_closed_loop_comparison = true;
 
     % Predictive 
     config.run_predictive = false;
     config.run_predictive_comparison = false;
+
+    if create_model_mismatch % general override in case of desired model mismatch
+        config.run_collect_data = false;
+        config.run_system_id = false;
+    end
 
     %% ========== SIMULATION PARAMETERS ==========
     config.simulation.t_sim = 600;          % Simulation time [s]
@@ -93,9 +105,8 @@ function config = config_simulation()
     
     %% ========== NOISE PARAMETERS ==========
     % Noise is added to measurement data during data collection
-    config.noise.enable = false;                 % Enable/disable noise
     config.noise.type = 'uniform';             % 'gaussian', 'uniform', or 'colored'
-    config.noise.SNR_dB = 10;                   % Desired Signal-to-Noise Ratio [dB]
+    config.noise.SNR_dB = 40;                   % Desired Signal-to-Noise Ratio [dB]
     config.noise.seed = 66;                     % Random seed (for reproducibility)
     
     % For colored noise only
@@ -128,6 +139,31 @@ function config = config_simulation()
     config.system_id.n_zeros = 1;                   % Number of zeros
     config.system_id.validation_fraction = 0.3;     % Validation data fraction
     
+        %% ===== Model mismatch specification (percent changes) =====
+    % Interpretation: value_new = value_nominal * (1 + delta_percent/100)
+    % Keep this simple and editable.
+    config.model_mismatch.enable = create_model_mismatch;
+
+    % Choose which parameters to perturb (add/remove fields as you like)
+    config.model_mismatch.delta_percent.U     = +10;   % heat transfer coefficient
+    config.model_mismatch.delta_percent.A     =  0;    % surface area
+    config.model_mismatch.delta_percent.m     = -5;    % mass
+    config.model_mismatch.delta_percent.Cp    = +8;    % heat capacity
+    config.model_mismatch.delta_percent.alpha = -10;   % heater efficiency
+    config.model_mismatch.delta_percent.eps   =  0;    % radiation coefficient
+
+    % Optional: add small absolute offsets for temperatures (NOT percent)
+    config.model_mismatch.delta_abs.Ta = 0;   % [°C]
+    config.model_mismatch.delta_abs.T0 = 0;   % [°C]
+
+    % Optional: reproducible randomization around the specified deltas
+    % If you want deterministic fixed deltas, set randomize=false.
+    config.model_mismatch.randomize = false;
+    config.model_mismatch.seed = 1;
+    % If randomize=true: actual delta = nominal_delta + uniform(-spread,+spread)
+    config.model_mismatch.spread_percent = 2; % [%]
+    config.model_mismatch.spread_abs_T = 0.5; % [°C]
+
     %% ========== THERMAL MODEL PARAMETERS ==========
     config.thermal_model.T0 = 23;           % Initial temperature [°C]
     config.thermal_model.Ta = 23;           % Ambient temperature [°C]
@@ -138,8 +174,44 @@ function config = config_simulation()
     config.thermal_model.alpha = 0.01;      % Heater efficiency
     config.thermal_model.eps = 0.9;         % Radiation coefficient
     config.thermal_model.sigma = 5.67e-8;   % Stefan-Boltzmann constant [W/m^2-K^4]
-    config.thermal_model.model_type = 'linear';  % 'linear' or 'nonlinear'
-    
+
+    % ===== Apply model mismatch (percent-based) =====
+    if config.model_mismatch.enable
+
+        % Keep a copy of the nominal parameters for traceability
+        config.thermal_model_nominal = config.thermal_model;
+
+        mm = config.model_mismatch;
+
+        if mm.randomize
+            rng(mm.seed);
+            jitterP = @(p) p + (2*rand()-1)*mm.spread_percent; % percent jitter
+            jitterT = @(t) t + (2*rand()-1)*mm.spread_abs_T;   % abs jitter
+        else
+            jitterP = @(p) p;
+            jitterT = @(t) t;
+        end
+
+        % Helper: apply percent delta safely
+        apply_pct = @(x, dp) x .* (1 + dp/100);
+
+        % Percent-perturbed parameters (edit list to taste)
+        config.thermal_model.U     = apply_pct(config.thermal_model.U,     jitterP(mm.delta_percent.U));
+        config.thermal_model.A     = apply_pct(config.thermal_model.A,     jitterP(mm.delta_percent.A));
+        config.thermal_model.m     = apply_pct(config.thermal_model.m,     jitterP(mm.delta_percent.m));
+        config.thermal_model.Cp    = apply_pct(config.thermal_model.Cp,    jitterP(mm.delta_percent.Cp));
+        config.thermal_model.alpha = apply_pct(config.thermal_model.alpha, jitterP(mm.delta_percent.alpha));
+        config.thermal_model.eps   = apply_pct(config.thermal_model.eps,   jitterP(mm.delta_percent.eps));
+
+        % Absolute temperature offsets
+        config.thermal_model.Ta = config.thermal_model.Ta + jitterT(mm.delta_abs.Ta);
+        config.thermal_model.T0 = config.thermal_model.T0 + jitterT(mm.delta_abs.T0);
+
+        % Optional: record the realized mismatch (useful when randomized)
+        config.model_mismatch.realized = struct();
+        config.model_mismatch.realized.thermal_model = config.thermal_model;
+    end
+
     %% ========== PLOTTING PARAMETERS ==========
     config.plotting.colors.MPC = [0.2, 0.7, 0.2];      % Lighter Green
     config.plotting.colors.DMC = [0.2, 0.4, 0.9];      % Lighter Blue
