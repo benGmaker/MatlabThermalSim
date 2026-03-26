@@ -1,5 +1,5 @@
 function [T, t, Q] = thermal_model(Q_input, params)
-% THERMAL_MODEL Simulates the thermal dynamics based on APMonitor models
+% THERMAL_MODEL Simulates the thermal dynamics (linear or nonlinear) with ode45
 %
 % Inputs:
 %   Q_input: function handle for heater input Q(t) [W or %]
@@ -16,61 +16,67 @@ function [T, t, Q] = thermal_model(Q_input, params)
 %       - t_final: simulation time [s] (default: 600)
 %       - dt: sampling time [s] (default: 1)
 %       - model_type: 'linear' or 'nonlinear' (default: 'nonlinear')
+%       - ode_opts: options struct created by odeset(...) (default: [])
 %
 % Outputs:
 %   T: temperature array [°C]
 %   t: time array [s]
-%   Q: heater input array [W or %]
+%   Q: heater input array [same units as Q_input]
 
-    % Default parameters
     if nargin < 2
         params = struct();
     end
-    
-    % Set defaults
     params = set_defaults(params);
-    
-    % Time vector
-    t = 0:params.dt:params.t_final;
-    n = length(t);
-    
-    % Initialize arrays
-    T = zeros(n, 1);
-    Q = zeros(n, 1);
-    T(1) = params.T0;
-    
-    % Simulate
-    for i = 1:n-1
-        Q(i) = Q_input(t(i));
-        
-        if strcmp(params.model_type, 'nonlinear')
-            % Nonlinear model with convection and radiation
-            % dT/dt = (Q*alpha - U*A*(T-Ta) - eps*sigma*A*(T^4-Ta^4)) / (m*Cp)
-            T_K = T(i) + 273.15;  % Convert to Kelvin for radiation
-            Ta_K = params.Ta + 273.15;
-            
-            Q_heater = params.alpha * Q(i);
-            Q_conv = params.U * params.A * (T(i) - params.Ta);
-            Q_rad = params.eps * params.sigma * params.A * (T_K^4 - Ta_K^4);
-            
-            dTdt = (Q_heater - Q_conv - Q_rad) / (params.m * params.Cp);
-        else
-            % Linear model (first-order)
-            % dT/dt = (Q*alpha - (T-Ta)/tau) / tau
-            tau = (params.m * params.Cp) / (params.U * params.A);
-            K = params.alpha / (params.U * params.A);
-            
-            dTdt = K * Q(i) / tau - (T(i) - params.Ta) / tau;
-        end
-        
-        % Euler integration
-        T(i+1) = T(i) + dTdt * params.dt;
+
+    % Output time vector (also forces solver output at these times)
+    t = (0:params.dt:params.t_final).';
+    T0 = params.T0;
+
+    % ODE options (tolerances can be tuned)
+    if isempty(params.ode_opts)
+        ode_opts = odeset('RelTol',1e-6,'AbsTol',1e-8);
+    else
+        ode_opts = params.ode_opts;
     end
-    Q(end) = Q_input(t(end));
+
+    % Integrate
+    ode_fun = @(tt, TT) thermal_ode(tt, TT, Q_input, params);
+    [~, Tsol] = ode45(ode_fun, t, T0, ode_opts);
+
+    % Outputs
+    T = Tsol(:);
+    Q = arrayfun(Q_input, t);
+end
+
+function dTdt = thermal_ode(t, T, Q_input, params)
+    Q = Q_input(t);
+
+    switch lower(params.model_type)
+        case 'nonlinear'
+            % Nonlinear model with convection and radiation
+            % dT/dt = (alpha*Q - U*A*(T-Ta) - eps*sigma*A*(T_K^4 - Ta_K^4)) / (m*Cp)
+            T_K  = T + 273.15;
+            Ta_K = params.Ta + 273.15;
+
+            Q_heater = params.alpha * Q;
+            Q_conv   = params.U * params.A * (T - params.Ta);
+            Q_rad    = params.eps * params.sigma * params.A * (T_K^4 - Ta_K^4);
+
+            dTdt = (Q_heater - Q_conv - Q_rad) / (params.m * params.Cp);
+
+        case 'linear'
+            % Linear first-order model (still continuous-time)
+            tau = (params.m * params.Cp) / (params.U * params.A);
+            K   = params.alpha / (params.U * params.A);
+
+            dTdt = (K * Q) / tau - (T - params.Ta) / tau;
+
+        otherwise
+            error('Unknown model_type "%s". Use "linear" or "nonlinear".', params.model_type);
+    end
 end
 
 function params = set_defaults(params)
-    % Set default parameter values based on APMonitor TCLab
     if ~isfield(params, 'T0'), params.T0 = 23; end
     if ~isfield(params, 'Ta'), params.Ta = 23; end
     if ~isfield(params, 'U'), params.U = 10; end
@@ -83,4 +89,7 @@ function params = set_defaults(params)
     if ~isfield(params, 't_final'), params.t_final = 600; end
     if ~isfield(params, 'dt'), params.dt = 1; end
     if ~isfield(params, 'model_type'), params.model_type = 'nonlinear'; end
+
+    % New optional field
+    if ~isfield(params, 'ode_opts'), params.ode_opts = []; end
 end

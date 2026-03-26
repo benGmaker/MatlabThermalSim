@@ -10,7 +10,7 @@ function config = config_simulation()
     %% ========== Global experiment variables ==========
     % variables which are needed for the global/total experiment are moved
     % from their original places to here 
-    config.thermal_model.model_type = 'linear';  % 'linear' or 'nonlinear'
+    config.thermal_model.model_type = 'nonlinear';  % 'linear' or 'nonlinear'
     config.noise.enable = false;                 % Enable/disable noise
     create_model_mismatch = false; 
 
