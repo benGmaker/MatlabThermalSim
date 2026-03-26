@@ -10,8 +10,8 @@ function config = config_simulation()
     %% ========== Global experiment variables ==========
     % variables which are needed for the global/total experiment are moved
     % from their original places to here 
-    config.thermal_model.model_type = 'nonlinear';  % 'linear' or 'nonlinear'
-    config.noise.enable = true;                 % Enable/disable noise
+    config.thermal_model.model_type = 'linear';  % 'linear' or 'nonlinear'
+    config.noise.enable = false;                 % Enable/disable noise
     create_model_mismatch = false; 
 
     %%  ========== RUN CONFIGURATION ==========
@@ -21,7 +21,7 @@ function config = config_simulation()
     config.run_MPC = true;
     config.run_SPC = true;
     config.run_DMC = true;
-    config.run_DeePC = true;
+    config.run_DeePC = false;
     config.run_closed_loop_comparison = true;
 
     % Predictive 
@@ -40,8 +40,8 @@ function config = config_simulation()
     %% ========== SETPOINT PROFILE ==========
     % Define setpoint changes as [time, temperature] pairs
     config.setpoint.times = [0, 200, 400];      % Setpoint change times [s]
-    config.setpoint.values = [40, 50, 35];      % Setpoint temperatures [°C]
-    
+    config.setpoint.values = [92, 100, 80];      % Setpoint temperatures [°C]    
+
     %% ========== CONTROL CONSTRAINTS (SHARED ACROSS ALL CONTROLLERS) ==========
 
     % Hard constraints (confines policy input to bounds, not setting solver bounds)
@@ -116,7 +116,7 @@ function config = config_simulation()
     %% ========== DATA COLLECTION PARAMETERS ==========
     config.data_collection.t_final = 600;           % Experiment duration [s]
     config.data_collection.dt = 1;                  % Sampling time [s]
-    config.data_collection.step_amplitude = 50;     % Step input amplitude [%]
+    config.data_collection.step_amplitude = 100;     % Step input amplitude [%]
     config.data_collection.step_delay = 2;         % Delay before step [s]
     config.data_collection.impulse_amplitude = 100; % Impulse amplitude [%]
     config.data_collection.impulse_duration = 10;   % Impulse duration [s]
@@ -165,13 +165,13 @@ function config = config_simulation()
     config.model_mismatch.spread_abs_T = 0.5; % [°C]
 
     %% ========== THERMAL MODEL PARAMETERS ==========
-    config.thermal_model.T0 = 23;           % Initial temperature [°C]
-    config.thermal_model.Ta = 23;           % Ambient temperature [°C]
+    config.thermal_model.T0 = 90;           % Initial temperature [°C]
+    config.thermal_model.Ta = 40;           % Ambient temperature [°C]
     config.thermal_model.U = 10;            % Heat transfer coefficient [W/m^2-K]
     config.thermal_model.A = 1e-3;          % Surface area [m^2]
     config.thermal_model.m = 4e-3;          % Mass [kg]
     config.thermal_model.Cp = 500;          % Heat capacity [J/kg-K]
-    config.thermal_model.alpha = 0.01;      % Heater efficiency
+    config.thermal_model.alpha = 0.8;      % Heater efficiency
     config.thermal_model.eps = 0.9;         % Radiation coefficient
     config.thermal_model.sigma = 5.67e-8;   % Stefan-Boltzmann constant [W/m^2-K^4]
 
@@ -224,8 +224,4 @@ function config = config_simulation()
     config.metadata.matlab_version = version;
     config.metadata.description = 'Centralized configuration for thermal control system simulation';
     
-    %% ========== HELPER: PRINT CONFIGURATION ==========
-    % Optionally display configuration summary when created
-    % Uncomment to enable:
-    % print_config_summary(config);
 end
