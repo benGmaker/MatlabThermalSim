@@ -108,10 +108,12 @@ function [u_opt, status, dbg] = solve_deepc_qp(U_p, Y_p, U_f, Y_f, u_ini, y_ini,
 
     % sigma penalties
     if use_sigma_y
-      H(sigY,sigY) = H(sigU,sigU) + 2*lambda_y*I;
+        % n_sigma_y == T_ini when enabled
+        H(idx_sigma_y, idx_sigma_y) = H(idx_sigma_y, idx_sigma_y) + 2*lambda_y*eye(n_sigma_y);
     end
     if use_sigma_u
-      H(sigU,sigU) = H(sigU,sigU) + 2*lambda_y*I;
+        % penalty on u_ini slack should use lambda_uini (not lambda_y)
+        H(idx_sigma_u, idx_sigma_u) = H(idx_sigma_u, idx_sigma_u) + 2*lambda_uini*eye(n_sigma_u);
     end
 
     % ---- Δu penalty: (D*(U_f*g) - d0)' S (D*(U_f*g) - d0) (scaled) ----
