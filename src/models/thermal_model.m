@@ -23,21 +23,10 @@ function [T, t, Q] = thermal_model(Q_input, params)
 %   t: time array [s]
 %   Q: heater input array [same units as Q_input]
 
-    if nargin < 2
-        params = struct();
-    end
-    params = set_defaults(params);
-
     % Output time vector (also forces solver output at these times)
     t = (0:params.dt:params.t_final).';
     T0 = params.T0;
-
-    % ODE options (tolerances can be tuned)
-    if isempty(params.ode_opts)
-        ode_opts = odeset('RelTol',1e-6,'AbsTol',1e-8);
-    else
-        ode_opts = params.ode_opts;
-    end
+    ode_opts = odeset('RelTol',1e-6,'AbsTol',1e-8);
 
     % Integrate
     ode_fun = @(tt, TT) thermal_ode(tt, TT, Q_input, params);

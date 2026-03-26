@@ -21,7 +21,7 @@ function config = config_simulation()
     config.run_MPC = true;
     config.run_SPC = true;
     config.run_DMC = true;
-    config.run_DeePC = false;
+    config.run_DeePC = true;
     config.run_closed_loop_comparison = true;
 
     % Predictive 
@@ -40,7 +40,7 @@ function config = config_simulation()
     %% ========== SETPOINT PROFILE ==========
     % Define setpoint changes as [time, temperature] pairs
     config.setpoint.times = [0, 200, 400];      % Setpoint change times [s]
-    config.setpoint.values = [92, 100, 80];      % Setpoint temperatures [°C]    
+    config.setpoint.values = [66, 72, 50];      % Setpoint temperatures [°C]    
 
     %% ========== CONTROL CONSTRAINTS (SHARED ACROSS ALL CONTROLLERS) ==========
 
@@ -121,8 +121,8 @@ function config = config_simulation()
     config.data_collection.impulse_amplitude = 100; % Impulse amplitude [%]
     config.data_collection.impulse_duration = 10;   % Impulse duration [s]
     config.data_collection.impulse_delay = 2;      % Delay before impulse [s]
-    config.data_collection.multisine_amplitude = 30;% Multisine amplitude [%]
-    config.data_collection.multisine_offset = 20;   % Multisine DC offset [%]
+    config.data_collection.multisine_amplitude = 50;% Multisine amplitude [%]
+    config.data_collection.multisine_offset = 50;   % Multisine DC offset [%]
     config.data_collection.freq_min = 0.001;        % Min frequency [Hz]
     config.data_collection.freq_max = 0.05;         % Max frequency [Hz]
     config.data_collection.n_freq = 10;             % Number of frequencies
@@ -145,12 +145,12 @@ function config = config_simulation()
     config.model_mismatch.enable = create_model_mismatch;
 
     % Choose which parameters to perturb (add/remove fields as you like)
-    config.model_mismatch.delta_percent.U     = +10;   % heat transfer coefficient
-    config.model_mismatch.delta_percent.A     =  0;    % surface area
-    config.model_mismatch.delta_percent.m     = -5;    % mass
-    config.model_mismatch.delta_percent.Cp    = +8;    % heat capacity
-    config.model_mismatch.delta_percent.alpha = -10;   % heater efficiency
-    config.model_mismatch.delta_percent.eps   =  0;    % radiation coefficient
+    config.model_mismatch.delta_percent.U     = +50;   % heat transfer coefficient
+    config.model_mismatch.delta_percent.A     =  +20;    % surface area
+    config.model_mismatch.delta_percent.m     = -20;    % mass
+    config.model_mismatch.delta_percent.Cp    = +10;    % heat capacity
+    config.model_mismatch.delta_percent.alpha = -50;   % heater efficiency
+    config.model_mismatch.delta_percent.eps   =  -10;    % radiation coefficient
 
     % Optional: add small absolute offsets for temperatures (NOT percent)
     config.model_mismatch.delta_abs.Ta = 0;   % [°C]
@@ -165,22 +165,22 @@ function config = config_simulation()
     config.model_mismatch.spread_abs_T = 0.5; % [°C]
 
     %% ========== THERMAL MODEL PARAMETERS ==========
-    config.thermal_model.T0 = 90;           % Initial temperature [°C]
-    config.thermal_model.Ta = 40;           % Ambient temperature [°C]
-    config.thermal_model.U = 10;            % Heat transfer coefficient [W/m^2-K]
-    config.thermal_model.A = 1e-3;          % Surface area [m^2]
-    config.thermal_model.m = 4e-3;          % Mass [kg]
-    config.thermal_model.Cp = 500;          % Heat capacity [J/kg-K]
-    config.thermal_model.alpha = 0.8;      % Heater efficiency
-    config.thermal_model.eps = 0.9;         % Radiation coefficient
+    % constant parameters
+    config.thermal_model.T0 = 60;           % Initial temperature [°C]
+    config.thermal_model.Ta = 30;           % Ambient temperature [°C]
     config.thermal_model.sigma = 5.67e-8;   % Stefan-Boltzmann constant [W/m^2-K^4]
+
+    % variable parameters for mismatch
+    thermal_model.U = 10;            % Heat transfer coefficient [W/m^2-K]
+    thermal_model.A = 1e-3;          % Surface area [m^2]
+    thermal_model.m = 4e-3;          % Mass [kg]
+    thermal_model.Cp = 500;          % Heat capacity [J/kg-K]
+    thermal_model.alpha = 0.8;      % Heater efficiency
+    thermal_model.eps = 0.9;         % Radiation coefficient
+
 
     % ===== Apply model mismatch (percent-based) =====
     if config.model_mismatch.enable
-
-        % Keep a copy of the nominal parameters for traceability
-        config.thermal_model_nominal = config.thermal_model;
-
         mm = config.model_mismatch;
 
         if mm.randomize
@@ -196,20 +196,24 @@ function config = config_simulation()
         apply_pct = @(x, dp) x .* (1 + dp/100);
 
         % Percent-perturbed parameters (edit list to taste)
-        config.thermal_model.U     = apply_pct(config.thermal_model.U,     jitterP(mm.delta_percent.U));
-        config.thermal_model.A     = apply_pct(config.thermal_model.A,     jitterP(mm.delta_percent.A));
-        config.thermal_model.m     = apply_pct(config.thermal_model.m,     jitterP(mm.delta_percent.m));
-        config.thermal_model.Cp    = apply_pct(config.thermal_model.Cp,    jitterP(mm.delta_percent.Cp));
-        config.thermal_model.alpha = apply_pct(config.thermal_model.alpha, jitterP(mm.delta_percent.alpha));
-        config.thermal_model.eps   = apply_pct(config.thermal_model.eps,   jitterP(mm.delta_percent.eps));
-
-        % Absolute temperature offsets
-        config.thermal_model.Ta = config.thermal_model.Ta + jitterT(mm.delta_abs.Ta);
-        config.thermal_model.T0 = config.thermal_model.T0 + jitterT(mm.delta_abs.T0);
+        config.thermal_model.U     = apply_pct(thermal_model.U,     jitterP(mm.delta_percent.U));
+        config.thermal_model.A     = apply_pct(thermal_model.A,     jitterP(mm.delta_percent.A));
+        config.thermal_model.m     = apply_pct(thermal_model.m,     jitterP(mm.delta_percent.m));
+        config.thermal_model.Cp    = apply_pct(thermal_model.Cp,    jitterP(mm.delta_percent.Cp));
+        config.thermal_model.alpha = apply_pct(thermal_model.alpha, jitterP(mm.delta_percent.alpha));
+        config.thermal_model.eps   = apply_pct(thermal_model.eps,   jitterP(mm.delta_percent.eps));
 
         % Optional: record the realized mismatch (useful when randomized)
         config.model_mismatch.realized = struct();
         config.model_mismatch.realized.thermal_model = config.thermal_model;
+    else
+        % variable parameters for mismatch
+        config.thermal_model.U = thermal_model.U;            % Heat transfer coefficient [W/m^2-K]
+        config.thermal_model.A = thermal_model.A;          % Surface area [m^2]
+        config.thermal_model.m = thermal_model.m;          % Mass [kg]
+        config.thermal_model.Cp = thermal_model.Cp;          % Heat capacity [J/kg-K]
+        config.thermal_model.alpha = thermal_model.alpha;      % Heater efficiency
+        config.thermal_model.eps = thermal_model.eps;         % Radiation coefficient
     end
 
     %% ========== PLOTTING PARAMETERS ==========

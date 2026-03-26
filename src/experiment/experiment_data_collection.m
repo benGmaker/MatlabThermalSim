@@ -24,12 +24,9 @@ function experiment_data_collection(config)
     fprintf('========================================\n\n');
 
     %% ========== SETUP PARAMETERS FROM CONFIG ==========
-    params = struct();
+    params = config.thermal_model;
     params.dt = config.data_collection.dt;
     params.t_final = config.data_collection.t_final;
-    params.T0 = config.thermal_model.T0;
-    params.Ta = config.thermal_model.Ta;
-    params.model_type = config.thermal_model.model_type;
 
     fprintf('Experiment Parameters:\n');
     fprintf('  Duration: %d s\n', params.t_final);
@@ -224,8 +221,9 @@ function experiment_data_collection(config)
     doublet_amplitude = config.data_collection.doublet_amplitude;
     doublet_duration = config.data_collection.doublet_duration;
     doublet_delay = config.data_collection.doublet_delay;
+    double_t_base_power = 50; 
 
-    Q_doublet = @(t) doublet_amplitude * (t >= doublet_delay & t < doublet_delay + doublet_duration) - ...
+    Q_doublet = @(t) double_t_base_power + doublet_amplitude * (t >= doublet_delay & t < doublet_delay + doublet_duration) - ...
                      doublet_amplitude * (t >= doublet_delay + doublet_duration & t < doublet_delay + 2*doublet_duration);
 
     [T_doublet_clean, t_doublet, Q_doublet_data] = thermal_model(Q_doublet, params);

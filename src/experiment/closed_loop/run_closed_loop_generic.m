@@ -20,12 +20,11 @@ function [results, ctrl_final] = run_closed_loop_generic(config, controller, con
     y(1) = r_abs(1);
     u(1) = 0;
 
-    params = struct();
-    params.dt = dt;
-    params.T0 = y(1);
-    params.model_type = config.thermal_model.model_type;
-
+    params = config.thermal_model;
+    params.dt = 1;
+    
     ctrl = controller_init();
+
 
     for k = 1:n_steps-1
         P_preview = config.predictive.P; % Prediction horizon
